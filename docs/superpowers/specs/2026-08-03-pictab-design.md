@@ -218,6 +218,7 @@ This restriction does not remove the neutral direct URL or generic JSON API conn
 - TypeScript
 - Vite
 - Chrome Manifest V3
+- Chrome 111 or newer, matching the explicit Vite build target
 - CSS variables and scoped component styles
 - Vitest for unit/component tests
 - Playwright with Chromium for end-to-end extension flows
@@ -260,7 +261,7 @@ Persistence layer:
 
 - Use the minimum static extension permissions needed for new-tab replacement and local storage.
 - Treat remote provider origins as optional host permissions wherever Chrome permits, requested only during a user-initiated connection or feature setup.
-- Do not request geolocation unless the user chooses "Use current location."
+- Chrome requires the `geolocation` manifest permission to be declared statically for extension pages. PicTab must never call `navigator.geolocation` unless the user explicitly chooses "Use current location," and the UI must explain the permission before use.
 - Do not include analytics, crash-reporting SDKs, tracking pixels, or a PicTab server.
 - Mask credentials in the UI and never write them to logs, error messages, exported diagnostics, or synchronized storage.
 - Document that local storage protects against network disclosure, not against access to the user's unlocked browser profile.

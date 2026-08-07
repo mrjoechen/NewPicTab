@@ -208,8 +208,8 @@ Create a minimal MV3 manifest:
   "name": "PicTab",
   "version": "0.1.0",
   "description": "A quiet, configurable photo new tab.",
-  "permissions": ["storage", "unlimitedStorage"],
-  "optional_permissions": ["geolocation"],
+  "minimum_chrome_version": "111",
+  "permissions": ["storage", "unlimitedStorage", "geolocation"],
   "optional_host_permissions": ["https://*/*"],
   "chrome_url_overrides": { "newtab": "newtab.html" },
   "background": { "service_worker": "background.js", "type": "module" }
@@ -680,7 +680,7 @@ Use the official geocoding and forecast HTTPS endpoints. Normalize `{ location, 
 
 - [ ] **Step 4: Implement clock/weather UI and settings**
 
-Use one aligned minute timer when seconds are off and a one-second timer when enabled. Format through `Intl.DateTimeFormat`. Weather remains one restrained line. "Use current location" requests permission/geolocation only within that button click; switching to a city stops using stored live coordinates.
+Use one aligned minute timer when seconds are off and a one-second timer when enabled. Format through `Intl.DateTimeFormat`. Weather remains one restrained line. Chrome requires the `geolocation` permission to be declared statically, but PicTab calls `navigator.geolocation` only inside the explicit "Use current location" button click after explaining why; switching to a city stops using stored live coordinates.
 
 - [ ] **Step 5: Verify and commit**
 

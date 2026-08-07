@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "PicTab",
+  "description": "以本地、WebDAV、在线 URL、JSON API 或 TMDB 图片打造极简新标签页。",
+  "version": "0.1.0",
+  "minimum_chrome_version": "111",
+  "homepage_url": "https://github.com/mrjoechen/PicTab",
+  "permissions": ["storage", "unlimitedStorage", "geolocation", "favicon"],
+  "host_permissions": [
+    "https://api.themoviedb.org/*",
+    "https://image.tmdb.org/*",
+    "https://api.open-meteo.com/*",
+    "https://geocoding-api.open-meteo.com/*",
+    "https://api.bigdatacloud.net/*"
+  ],
+  "optional_host_permissions": ["https://*/*"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; img-src 'self' blob: data: https://www.google.com/favicon.ico https://www.bing.com/favicon.ico https://duckduckgo.com/favicon.ico https://www.baidu.com/favicon.ico"
+  },
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  }
+}
