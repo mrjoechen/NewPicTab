@@ -8,6 +8,7 @@ const workflowPath = resolve(process.cwd(), '.github/workflows/release.yml');
 const workflow = readFileSync(workflowPath, 'utf8');
 const validationScript = extractRunScript('Validate release version');
 const packagingScript = extractRunScript('Package Chrome Web Store submission');
+const releaseScript = extractRunScript('Create GitHub Release');
 const temporaryDirectories: string[] = [];
 
 function extractRunScript(stepName: string): string {
@@ -123,9 +124,47 @@ printf 'checksum  %s\\n' "$1"
       '--source',
       'dist',
       '--output',
-      'pictab-v1.2.3-chrome-store.zip',
+      'pictab-v1.2.3.zip',
       '--version',
       '1.2.3'
+    ]);
+  });
+
+  it('uploads release assets using their archive filenames', () => {
+    const fixture = createReleaseFixture('9.9.9', '1.2.3');
+    const archive = 'pictab-v1.2.3.zip';
+    const capturedArgumentsPath = join(fixture, 'gh-arguments.txt');
+    const binPath = join(fixture, 'bin');
+    mkdirSync(binPath);
+    writeFileSync(join(fixture, archive), 'zip');
+    writeFileSync(join(fixture, `${archive}.sha256`), 'checksum');
+    writeExecutable(join(binPath, 'gh'), `#!/usr/bin/env bash
+if [[ "$1" == 'release' && "$2" == 'view' ]]; then
+  exit 0
+fi
+printf '%s\\n' "$@" > "$CAPTURED_ARGUMENTS_PATH"
+`);
+
+    const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', releaseScript], {
+      cwd: fixture,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CAPTURED_ARGUMENTS_PATH: capturedArgumentsPath,
+        PATH: `${binPath}:${process.env.PATH ?? ''}`,
+        RELEASE_TAG: 'v1.2.3'
+      }
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(readFileSync(capturedArgumentsPath, 'utf8').trim().split('\n')).toEqual([
+      'release',
+      'upload',
+      'v1.2.3',
+      archive,
+      `${archive}.sha256`,
+      '--clobber'
     ]);
   });
 });
