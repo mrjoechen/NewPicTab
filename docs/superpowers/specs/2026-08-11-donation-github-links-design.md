@@ -7,7 +7,7 @@ Make it easy for PicTab users to see the extension, support the author, and reac
 ## Scope
 
 - Add a branded Ko-fi donation link to the About panel's “Source and license” link row.
-- Add a GitHub repository icon link to the settings drawer header.
+- Add adjacent Ko-fi donation and GitHub repository icon links to the settings drawer header.
 - Add a Ko-fi badge and two extension preview images to both `README.md` and `README_ZH.md`.
 - Add a GitHub line icon to the existing shared `Icon` component.
 
@@ -21,7 +21,11 @@ Add a compact icon-and-text link labeled “支持作者” in Chinese and “Su
 
 ### Settings drawer
 
-Add an icon-only GitHub repository link to the header action group, alongside the close and language controls. It uses the shared GitHub icon and receives localized `aria-label` and `title` text: “打开 GitHub 项目” in Chinese and “Open GitHub project” in English. The destination is the existing `PROJECT_REPOSITORY_URL` constant.
+Add icon-only Ko-fi donation and GitHub repository links to the header action group, alongside the close and language controls. Their visual order is Ko-fi, GitHub, language, then close, while the close button remains the first focusable element in DOM order so the existing focus trap keeps its behavior.
+
+The Ko-fi link uses the bundled `assets/ko-fi-logomark.webp`, rendered at a 20-pixel CSS height with automatic width. Its localized `aria-label` and `title` text is “支持作者” in Chinese and “Support the author” in English. Its destination is the shared `PROJECT_DONATION_URL` constant.
+
+The GitHub link uses the shared GitHub icon and receives localized `aria-label` and `title` text: “打开 GitHub 项目” in Chinese and “Open GitHub project” in English. Its destination is the existing `PROJECT_REPOSITORY_URL` constant.
 
 ### README files
 
@@ -65,6 +69,7 @@ Treat `/Users/eeo/Downloads/logomarkLogo2024.webp` as the source for the About-p
 - Add `ko-fi.com` to the About panel's explicit HTTPS external-host allowlist.
 - Icon-only links have localized accessible names and tooltips.
 - Decorative SVGs remain hidden from assistive technology; the link text or accessible name supplies meaning.
+- The settings-header Ko-fi image is decorative (`alt=""`) because the enclosing link has a localized accessible name.
 - Existing 44-pixel link/control hit-area conventions remain in effect.
 - README preview images have descriptive, localized alt text and are stored in the repository rather than loaded from an external host.
 - The About-panel Ko-fi image is decorative (`alt=""`) because the adjacent localized link text supplies its accessible name.
@@ -73,7 +78,7 @@ Treat `/Users/eeo/Downloads/logomarkLogo2024.webp` as the source for the About-p
 
 - Extend `IconName` and `iconPath` with `github`; remove the interim `coffee` icon after the Ko-fi logomark replaces it.
 - Reuse `PROJECT_REPOSITORY_URL` for the settings header link to avoid duplicating the repository address.
-- Keep the Ko-fi URL as a single About-panel constant and mirror the same stable URL in Markdown documentation.
+- Export `PROJECT_DONATION_URL` from `src/project.ts` and reuse it in the About panel and settings drawer; mirror the same stable URL in Markdown documentation.
 - Limit styling changes to the Ko-fi icon-and-text About link and settings-header anchor behavior, preserving existing controls and unrelated user edits in `styles.css`.
 - Treat the resized preview images as documentation assets; do not add them to the extension bundle or runtime manifest.
 
@@ -81,6 +86,7 @@ Treat `/Users/eeo/Downloads/logomarkLogo2024.webp` as the source for the About-p
 
 - Update `AboutPanel.test.tsx` first and confirm it fails because the bundled Ko-fi logomark is absent; retain assertions for the accessible label, exact Ko-fi URL, new-tab target, and safe relation, and assert the image source and empty alt text.
 - Update `SettingsDrawer.test.tsx` first and confirm it fails because the GitHub header link is absent; assert its accessible name, repository URL, new-tab target, and safe relation.
+- Extend `SettingsDrawer.test.tsx` with a failing Ko-fi header-link assertion; verify the localized accessible name, shared donation URL, local image path, empty alt text, new-tab target, and safe relation. Retain the existing focus-trap regression test.
 - Implement only enough component, icon, localization, and style changes to make the tests pass.
 - Run the focused tests, then the full test suite and production build.
 - Check both README files for the exact corrected Ko-fi badge HTML.
