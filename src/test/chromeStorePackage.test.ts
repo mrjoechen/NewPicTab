@@ -72,6 +72,22 @@ describe('Chrome Web Store package script', () => {
     expect(entries).not.toContain('dist/manifest.json');
   });
 
+  it('omits OS metadata from the upload zip', () => {
+    const { outputPath, sourcePath } = createFixture();
+    writeFileSync(join(sourcePath, '.DS_Store'), 'finder metadata');
+    writeFileSync(join(sourcePath, 'assets/Thumbs.db'), 'windows metadata');
+
+    const result = packageFixture(sourcePath, outputPath);
+
+    expect(result.stderr).toBe('');
+    expect(result.status).toBe(0);
+    const entries = execFileSync('unzip', ['-Z1', outputPath], { encoding: 'utf8' })
+      .trim()
+      .split('\n');
+    expect(entries).not.toContain('.DS_Store');
+    expect(entries).not.toContain('assets/Thumbs.db');
+  });
+
   it('rejects a manifest version that differs from the release version', () => {
     const { outputPath, sourcePath } = createFixture();
 

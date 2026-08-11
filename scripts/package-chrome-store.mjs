@@ -13,7 +13,7 @@ import {
 import { dirname, extname, isAbsolute, relative, resolve, sep } from 'node:path';
 
 const MAX_PACKAGE_BYTES = 2 * 1024 * 1024 * 1024;
-const FORBIDDEN_NAMES = new Set(['.DS_Store', 'Thumbs.db']);
+const IGNORED_NAMES = new Set(['.DS_Store', 'Thumbs.db']);
 const FORBIDDEN_DIRECTORIES = new Set(['.git', '__MACOSX', 'node_modules']);
 const FORBIDDEN_EXTENSIONS = new Set(['.crx', '.key', '.p12', '.pem', '.pfx']);
 
@@ -45,6 +45,9 @@ function listSubmissionEntries(sourcePath) {
   const entries = [];
   const visit = (directory) => {
     for (const name of readdirSync(directory).sort()) {
+      if (IGNORED_NAMES.has(name)) {
+        continue;
+      }
       const absolutePath = resolve(directory, name);
       const archivePath = toArchivePath(relative(sourcePath, absolutePath));
       const stats = lstatSync(absolutePath);
@@ -66,7 +69,6 @@ function assertSafeFiles(entries) {
   for (const entry of entries) {
     const segments = entry.archivePath.split('/');
     if (
-      FORBIDDEN_NAMES.has(entry.name) ||
       segments.some((segment) => FORBIDDEN_DIRECTORIES.has(segment)) ||
       (!entry.stats.isDirectory() && FORBIDDEN_EXTENSIONS.has(extname(entry.name).toLowerCase()))
     ) {
@@ -272,6 +274,9 @@ function assertArchive(outputPath) {
   if (!entries.includes('manifest.json')) {
     fail('archive must contain manifest.json at its root');
   }
+  if (entries.some((entry) => IGNORED_NAMES.has(entry.split('/').at(-1) ?? ''))) {
+    fail('archive contains ignored OS metadata');
+  }
   if (entries.some((entry) => entry.startsWith('/') || entry.split('/').includes('..'))) {
     fail('archive contains an unsafe path');
   }
@@ -307,7 +312,19 @@ function main() {
     }
     rmSync(outputPath);
   }
-  run('zip', ['-q', '-X', '-9', '-r', outputPath, '.'], {
+  run('zip', [
+    '-q',
+    '-X',
+    '-9',
+    '-r',
+    outputPath,
+    '.',
+    '-x',
+    '.DS_Store',
+    '*/.DS_Store',
+    'Thumbs.db',
+    '*/Thumbs.db'
+  ], {
     cwd: sourcePath,
     env: { ...process.env, COPYFILE_DISABLE: '1' }
   });

@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest';
+import { Blob as NodeBlob, File as NodeFile } from 'node:buffer';
 import { vi } from 'vitest';
 
 const runtime = {
@@ -37,6 +38,13 @@ Object.defineProperty(globalThis, 'chrome', {
   configurable: true,
   writable: true
 });
+
+// Keep Fetch and Blob constructors from the same runtime. Node 22's Response
+// requires Blob.stream(), which jsdom's Blob does not provide.
+for (const target of [globalThis, globalThis.window].filter(Boolean)) {
+  Object.defineProperty(target, 'Blob', { value: NodeBlob, configurable: true, writable: true });
+  Object.defineProperty(target, 'File', { value: NodeFile, configurable: true, writable: true });
+}
 
 // Node exposes a process-wide LockManager. Tests opt into isolated lock mocks
 // explicitly so parallel Vitest files cannot block one another on production names.
