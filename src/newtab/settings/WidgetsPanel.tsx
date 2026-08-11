@@ -49,7 +49,7 @@ const DEFAULT_OPERATIONS: WeatherOperations = {
 export function WidgetsPanel({ section, settings, onUpdate, operations = DEFAULT_OPERATIONS, currentWeather, onClockScalePreview }: WidgetsPanelProps) {
   if (section === 'time') return <TimeDatePanel value={settings.widgets} onUpdate={onUpdate} onClockScalePreview={onClockScalePreview} />;
   if (section === 'search') return <SearchPanel value={settings.widgets.search} onUpdate={onUpdate} />;
-  return <WeatherPanel value={settings.widgets.weather} onUpdate={onUpdate} operations={operations} currentWeather={currentWeather} />;
+  return <WeatherPanel value={settings.widgets.weather} language={settings.interfaceLanguage} onUpdate={onUpdate} operations={operations} currentWeather={currentWeather} />;
 }
 
 function SearchPanel({ value, onUpdate }: { value: WidgetSettings['search']; onUpdate: SettingsUpdater }) {
@@ -93,6 +93,11 @@ function SearchPanel({ value, onUpdate }: { value: WidgetSettings['search']; onU
 
 const CLOCK_SCALE_MIN = 0.45;
 const CLOCK_SCALE_MAX = 1.35;
+const DATE_LOCALES = [
+  { value: '', label: '跟随界面语言' },
+  { value: 'zh-CN', label: '简体中文' },
+  { value: 'en-US', label: 'English (US)' }
+] as const;
 
 function TimeDatePanel({ value, onUpdate, onClockScalePreview }: { value: WidgetSettings; onUpdate: SettingsUpdater; onClockScalePreview?: (scale: number | null) => void }) {
   const patchClock = (patch: Partial<WidgetSettings['clock']>) => void onUpdate((current) => ({ ...current, widgets: { ...current.widgets, clock: { ...current.widgets.clock, ...patch } } }));
@@ -111,7 +116,7 @@ function TimeDatePanel({ value, onUpdate, onClockScalePreview }: { value: Widget
     if (Math.abs(scale - savedScale) > 0.004) patchClock({ scale, size: scaleToSize(scale) });
   };
   return <section className="settings-section" aria-labelledby="time-date-title">
-    <header className="settings-section__header"><p className="settings-eyebrow">小组件</p><h2 id="time-date-title">时间日期</h2><p>时间与日期可以独立显示。</p></header>
+    <header className="settings-section__header"><p className="settings-eyebrow">小组件</p><h2 id="time-date-title">时间和日期</h2><p>时间与日期可以独立显示。</p></header>
     <div className="settings-form">
       <label className="check-field"><input type="checkbox" checked={value.clock.enabled} onChange={(event) => patchClock({ enabled: event.target.checked })} />显示时间</label>
       <label className="field"><span>时间格式</span><select value={value.clock.hour12 ? '12' : '24'} disabled={!value.clock.enabled} onChange={(event) => patchClock({ hour12: event.target.value === '12' })}><option value="24">24 小时</option><option value="12">12 小时</option></select></label>
@@ -122,7 +127,7 @@ function TimeDatePanel({ value, onUpdate, onClockScalePreview }: { value: Widget
       <label className="check-field"><input type="checkbox" checked={value.date.enabled} onChange={(event) => patchDate({ enabled: event.target.checked })} />显示日期</label>
       <label className="check-field"><input type="checkbox" checked={value.date.showLunar} disabled={!value.date.enabled} onChange={(event) => patchDate({ showLunar: event.target.checked })} />显示农历</label>
       <label className="field"><span>日期格式</span><select value={value.date.format} disabled={!value.date.enabled} onChange={(event) => patchDate({ format: event.target.value as WidgetSettings['date']['format'] })}><option value="short">简短</option><option value="medium">标准</option><option value="long">详细</option><option value="full">完整</option></select></label>
-      <label className="field"><span>日期语言（留空跟随浏览器）</span><input value={value.date.locale} disabled={!value.date.enabled} placeholder="例如 zh-CN" onChange={(event) => patchDate({ locale: event.target.value.slice(0, 35) })} /></label>
+      <label className="field"><span>日期语言</span><select value={value.date.locale} disabled={!value.date.enabled} onChange={(event) => patchDate({ locale: event.target.value })}>{value.date.locale && !DATE_LOCALES.some((option) => option.value === value.date.locale) && <option value={value.date.locale}>{value.date.locale}</option>}{DATE_LOCALES.map((option) => <option key={option.value || 'interface'} value={option.value}>{option.label}</option>)}</select></label>
     </div>
   </section>;
 }
@@ -139,7 +144,7 @@ function scaleLabel(value: string): string {
   return `${Math.round(boundedClockScale(Number(value)) * 100)}%`;
 }
 
-function WeatherPanel({ value, onUpdate, operations, currentWeather }: { value: WidgetSettings['weather']; onUpdate: SettingsUpdater; operations: WeatherOperations; currentWeather?: WeatherSnapshot | null }) {
+function WeatherPanel({ value, language, onUpdate, operations, currentWeather }: { value: WidgetSettings['weather']; language: PicTabSettings['interfaceLanguage']; onUpdate: SettingsUpdater; operations: WeatherOperations; currentWeather?: WeatherSnapshot | null }) {
   const [query, setQuery] = useState(value.mode === 'city' ? value.city : '');
   const [cities, setCities] = useState<CityResult[]>([]);
   const [busy, setBusy] = useState(false);
@@ -154,7 +159,7 @@ function WeatherPanel({ value, onUpdate, operations, currentWeather }: { value: 
     setBusy(true); setMessage(''); setCities([]);
     try {
       if (!await operations.requestAccess()) { setMessage('未授予天气服务访问权限。'); return; }
-      const results = await operations.searchCities(normalized, navigator.language);
+      const results = await operations.searchCities(normalized, language);
       setCities(results); if (!results.length) setMessage('没有找到匹配的城市。');
     } catch { setMessage('暂时无法搜索城市。'); }
     finally { setBusy(false); }
@@ -183,7 +188,7 @@ function WeatherPanel({ value, onUpdate, operations, currentWeather }: { value: 
       const [access, position] = await Promise.all([accessPromise, positionPromise]);
       if (!access) { setMessage('未授予天气服务访问权限。'); return; }
       if (!validCoordinates(position.latitude, position.longitude)) { setMessage('未能读取位置，请改用城市。'); return; }
-      const location = await operations.reverseGeocode(position.latitude, position.longitude, navigator.language).catch(() => '当前位置');
+      const location = await operations.reverseGeocode(position.latitude, position.longitude, language).catch(() => language === 'zh-CN' ? '当前位置' : 'Current location');
       updateWeather({ enabled: true, mode: 'coordinates', city: location, latitude: position.latitude, longitude: position.longitude });
       const response = await operations.getCurrent({ location, ...position });
       setMessage(response.ok ? '已使用当前位置。' : '位置已保存，天气稍后自动刷新。');

@@ -62,6 +62,21 @@ describe('App', () => {
     expect(screen.getByRole('link', { name: '打开 Docs' })).toHaveAttribute('href', 'https://docs.example/');
   });
 
+  it('uses English throughout the resting page when English is selected', async () => {
+    const settings = createDefaultSettings(); settings.interfaceLanguage = 'en-US';
+    settings.widgets.shortcuts.enabled = true;
+    settings.shortcuts = [{ id: 'docs', title: 'Docs', url: 'https://docs.example/' }];
+    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ pictab: settings }));
+
+    render(<App />);
+
+    expect(await screen.findByRole('button', { name: 'Open settings' })).toBeInTheDocument();
+    expect(await screen.findByRole('complementary', { name: 'Get started with PicTab' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Shortcuts' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open Docs' })).toBeInTheDocument();
+    expect(document.documentElement).toHaveAttribute('lang', 'en-US');
+  });
+
   it('renders an accessible fallback and connects new-tab rotation to local persistence', async () => {
     render(<App />);
 

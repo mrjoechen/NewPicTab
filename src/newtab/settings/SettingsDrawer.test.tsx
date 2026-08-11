@@ -149,7 +149,7 @@ describe('SettingsDrawer', () => {
     );
     await user.click(screen.getByRole('button', { name: '打开设置' }));
 
-    for (const name of ['图片源', '背景与动效', '时间日期', '天气', '搜索', '快捷网址', '关于']) {
+    for (const name of ['图片源', '动效', '时间和日期', '天气', '搜索', '快捷网址', '关于']) {
       expect(screen.getByRole('button', { name })).toBeInTheDocument();
     }
 
@@ -175,6 +175,28 @@ describe('SettingsDrawer', () => {
 
     await user.click(within(navigation).getByRole('button', { name: '关于' }));
     expect(screen.getByRole('heading', { name: '关于与隐私' })).toBeInTheDocument();
+  });
+
+  it('fully localizes settings content after switching to English', async () => {
+    const settings = createDefaultSettings(); settings.interfaceLanguage = 'en-US';
+    render(<SettingsDrawer settings={settings} onUpdate={vi.fn()} onChangeImage={vi.fn()} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Open settings' }));
+
+    expect(screen.getByRole('heading', { name: 'Sources' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Effect' }).querySelector('path')).toHaveAttribute('d', 'm4 20 11-11');
+    expect(screen.getByRole('button', { name: 'Time and Date' })).toBeInTheDocument();
+    expect(screen.getByText('No image sources yet')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add image source' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Weather' }));
+    expect(screen.getByRole('heading', { name: 'Weather' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Search cities')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Use current location' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'About' }));
+    expect(screen.getByRole('heading', { name: 'About and privacy' })).toBeInTheDocument();
+    expect(screen.getByText(/contains no analytics, telemetry, or tracking/)).toBeInTheDocument();
+    expect(screen.getByText(/TMDB content and trademarks belong/)).toBeInTheDocument();
+    expect(document.querySelector('.settings-drawer')?.textContent).not.toMatch(/[㐀-鿿]/);
   });
 
   it('opens directly on Sources when the first-run request changes', async () => {
@@ -247,7 +269,7 @@ describe('SettingsDrawer', () => {
   it('emits appearance patches that merge against the latest locked settings value', async () => {
     const user = userEvent.setup(); const updaters: Array<(current: ReturnType<typeof createDefaultSettings>) => ReturnType<typeof createDefaultSettings>> = [];
     render(<SettingsDrawer settings={createDefaultSettings()} onUpdate={vi.fn((updater) => { updaters.push(updater); })} onChangeImage={vi.fn()} />);
-    await user.click(screen.getByRole('button', { name: '打开设置' })); await user.click(screen.getByRole('button', { name: '背景与动效' }));
+    await user.click(screen.getByRole('button', { name: '打开设置' })); await user.click(screen.getByRole('button', { name: '动效' }));
     await user.selectOptions(screen.getByLabelText('切换样式'), 'slide'); await user.selectOptions(screen.getByLabelText('换图时机'), 'interval');
     let current = createDefaultSettings(); for (const updater of updaters) current = updater(current);
     expect(current.appearance).toMatchObject({ transition: 'slide', changeOn: 'interval' });
@@ -259,7 +281,7 @@ describe('SettingsDrawer', () => {
     render(<SettingsDrawer settings={{ ...createDefaultSettings(), sources: [source] }} onUpdate={vi.fn()} onChangeImage={vi.fn()} />);
     await user.click(screen.getByRole('button', { name: '打开设置' }));
     const close = screen.getByRole('button', { name: '关闭设置' });
-    const appearance = screen.getByRole('button', { name: '背景与动效' });
+    const appearance = screen.getByRole('button', { name: '动效' });
     const deleteTrigger = screen.getByRole('button', { name: '删除 One' });
     deleteTrigger.setAttribute('tabindex', '2'); appearance.setAttribute('tabindex', '-1');
     await user.click(screen.getByRole('button', { name: '删除 One' }));

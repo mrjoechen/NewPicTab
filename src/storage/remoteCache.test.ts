@@ -102,7 +102,7 @@ describe('RemoteCache', () => {
     expect(descriptor.attribution).toHaveLength(MAX_REMOTE_TEXT_LENGTH);
   });
   it('only allows enabled remote providers', () => {
-    expect(RemoteCache.canCacheSourceType('direct')).toBe(true); expect(RemoteCache.canCacheSourceType('local')).toBe(false); expect(RemoteCache.canCacheSourceType('unsplash')).toBe(false);
+    expect(RemoteCache.canCacheSourceType('direct')).toBe(true); expect(RemoteCache.canCacheSourceType('local')).toBe(false); expect(RemoteCache.canCacheSourceType('unknown')).toBe(false);
   });
   it('enforces provider policy at runtime as well as the source-type signature', async () => {
     const cache = new MemoryCache(); const subject = new RemoteCache({ cache, meta: new MemoryMeta() });

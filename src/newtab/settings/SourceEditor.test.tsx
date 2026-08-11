@@ -6,6 +6,7 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { JsonApiSourceConfig, SourceConfig, TmdbSourceConfig } from '../../domain/types';
+import type { ImageEntry } from '../../sources/adapter';
 import { LocalSourceAdapter } from '../../sources/local';
 import { listLocal, putLocal } from '../../storage/imageDb';
 import { createSourceOperations } from '../sourceClient';
@@ -29,7 +30,7 @@ const operations: SourceOperations = {
   test: vi.fn(async () => ({ ok: true as const })),
   importLocal: vi.fn(async () => ({ imported: 0, failures: [] })),
   delete: vi.fn(async () => undefined),
-  loadTmdbMetadata: vi.fn(async () => ({ ok: true as const, genres: [{ id: 28, name: 'Action' }] })),
+  loadTmdbMetadata: vi.fn(async () => ({ ok: true as const, genres: [{ id: 28, name: 'Action' }], languages: ['en-US', 'zh-CN'], regions: ['CN', 'US'] })),
   withOriginPermissions: vi.fn(async (_urls, operation) => ({ ok: true as const, value: await operation() }))
 };
 
@@ -184,6 +185,70 @@ describe('SourceEditor lossless editing', () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ url: 'https://dav.example/photos/', folderPath: ['家庭 相册'] }));
   });
 
+  it('lets an existing WebDAV source load more previews when the first six do not overflow', async () => {
+    const source: SourceConfig = { id: 'webdav-more-preview', name: 'WebDAV', type: 'webdav', enabled: true, createdAt: 1, updatedAt: 1, url: 'https://dav.example/photos/', username: 'user', password: 'secret', includeSubdirectories: false };
+    const firstPage = Array.from({ length: 6 }, (_, index) => ({ id: `first-${index}`, sourceId: source.id, remoteCacheEntryId: `first-${index}`, remoteCacheFingerprint: 'fingerprint' }));
+    const secondPage = [{ id: 'seventh', sourceId: source.id, remoteCacheEntryId: 'seventh', remoteCacheFingerprint: 'fingerprint' }];
+    const list = vi.fn(async (_source: SourceConfig, options?: { offset?: number; limit?: number }) => options?.offset === 6
+      ? { ok: true as const, images: secondPage as [typeof secondPage[number]], offset: 6, nextOffset: 7, hasMore: false, totalCount: 7 }
+      : { ok: true as const, images: firstPage as [typeof firstPage[number], ...typeof firstPage], offset: 0, nextOffset: 6, hasMore: true, totalCount: 7 });
+    const materializePreview = vi.fn(async (entries: readonly ImageEntry[]) => ({
+      entries: entries.map((entry) => ({ id: entry.id, sourceId: entry.sourceId, url: `blob:${entry.id}` })),
+      release: vi.fn(),
+      released: false
+    } as unknown as RemoteCacheLease));
+    render(<SourceEditor source={source} type="webdav" initialMode="manage" operations={{ ...operations, list, materializePreview }} onSave={vi.fn()} onCancel={vi.fn()} onRefresh={vi.fn()} />);
+    const user = userEvent.setup();
+
+    expect(await screen.findAllByRole('img', { name: '图片预览缩略图' })).toHaveLength(6);
+    expect(screen.getByLabelText('连接预览').querySelector('.source-preview__grid')).toContainElement(screen.getAllByRole('img', { name: '图片预览缩略图' })[0]!);
+    await user.click(screen.getByRole('button', { name: '编辑完整配置' }));
+    await user.click(screen.getByRole('button', { name: '加载更多预览' }));
+
+    await waitFor(() => expect(screen.getAllByRole('img', { name: '图片预览缩略图' })).toHaveLength(7));
+    expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ id: source.id, url: source.url, folderPath: [] }), { offset: 6, limit: 6 });
+    expect(screen.queryByRole('button', { name: '加载更多预览' })).not.toBeInTheDocument();
+  });
+
+  it('keeps WebDAV browsing temporary until the folder is confirmed', async () => {
+    const source: SourceConfig = { id: 'webdav-temporary-folder', name: 'WebDAV', type: 'webdav', enabled: true, createdAt: 1, updatedAt: 1, url: 'https://dav.example/photos/', folderPath: ['Family'], username: 'user', password: 'secret', includeSubdirectories: false };
+    const test = vi.fn()
+      .mockResolvedValueOnce({ ok: true as const, protected: true as const, imageOrigins: ['https://dav.example/*'], count: 0, preview: [], directories: [{ id: `dir_${'a'.repeat(64)}`, name: 'Trips', relativeSegments: ['Trips'] }] })
+      .mockResolvedValueOnce({ ok: true as const, protected: true as const, imageOrigins: ['https://dav.example/*'], count: 0, preview: [], directories: [] })
+      .mockResolvedValueOnce({ ok: true as const, protected: true as const, imageOrigins: ['https://dav.example/*'], count: 0, preview: [], directories: [{ id: `dir_${'a'.repeat(64)}`, name: 'Trips', relativeSegments: ['Trips'] }] });
+    const cached = [{ id: 'one', sourceId: source.id, remoteCacheEntryId: 'one', remoteCacheFingerprint: 'fingerprint' }] as [{ id: string; sourceId: string; remoteCacheEntryId: string; remoteCacheFingerprint: string }];
+    const list = vi.fn(async () => ({ ok: true as const, images: cached }));
+    const materializePreview = vi.fn(async () => ({ entries: [{ id: 'one', sourceId: source.id, url: 'blob:webdav-existing-preview' }], release: vi.fn(), released: false } as unknown as RemoteCacheLease));
+    const onSave = vi.fn(async () => undefined);
+    render(<SourceEditor source={source} type="webdav" initialMode="manage" operations={{ ...operations, test, list, materializePreview }} onSave={onSave} onCancel={vi.fn()} onRefresh={vi.fn()} />);
+    const user = userEvent.setup();
+
+    expect(await screen.findByRole('img', { name: '图片预览缩略图' })).toHaveAttribute('src', 'blob:webdav-existing-preview');
+    expect(screen.getByRole('status')).toHaveTextContent('已加载 1 张预览');
+
+    await user.click(screen.getByRole('button', { name: '修改目标文件夹' }));
+    expect(await screen.findByText('当前路径：/Family')).toBeInTheDocument();
+    const pickerDialog = screen.getByRole('dialog', { name: '选择 WebDAV 文件夹' });
+    expect(pickerDialog.parentElement?.parentElement).toBe(document.body);
+    expect(screen.getByRole('img', { name: '图片预览缩略图' })).toHaveAttribute('src', 'blob:webdav-existing-preview');
+    expect(screen.getByText('已加载 1 张预览。')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '打开文件夹 Trips' }));
+    expect(await screen.findByText('当前路径：/Family/Trips')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '图片预览缩略图' })).toHaveAttribute('src', 'blob:webdav-existing-preview');
+    expect(screen.getByText('已加载 1 张预览。')).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: '取消选择' }));
+    expect(screen.queryByRole('dialog', { name: '选择 WebDAV 文件夹' })).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '图片预览缩略图' })).toHaveAttribute('src', 'blob:webdav-existing-preview');
+    expect(screen.getByText('已加载 1 张预览。')).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: '修改目标文件夹' }));
+    expect(await screen.findByText('当前路径：/Family')).toBeInTheDocument();
+  });
+
   it('opens a saved WebDAV folder path from its root so the picker can return to the root', async () => {
     const source: SourceConfig = { id: 'webdav-saved-path', name: 'WebDAV', type: 'webdav', enabled: true, createdAt: 1, updatedAt: 1, url: 'https://dav.example/photos/', folderPath: ['家庭 相册'], username: 'user', password: 'secret', includeSubdirectories: false };
     const test = vi.fn()
@@ -287,13 +352,13 @@ describe('SourceEditor lossless editing', () => {
     const source: TmdbSourceConfig = { id: 'tmdb-metadata-retry', name: 'TMDB', type: 'tmdb', enabled: true, createdAt: 1, updatedAt: 1, token: 'token', media: 'movie', feed: 'popular', discoverFilters: {} };
     const loadTmdbMetadata = vi.fn()
       .mockResolvedValueOnce({ ok: false as const, error: { message: 'metadata unavailable' } })
-      .mockResolvedValueOnce({ ok: true as const, genres: [{ id: 28, name: 'Action' }] });
+      .mockResolvedValueOnce({ ok: true as const, genres: [{ id: 28, name: 'Action' }], languages: ['en-US', 'zh-CN'], regions: ['CN', 'US'] });
     const custom: SourceOperations = { ...operations, loadTmdbMetadata };
     render(<SourceEditor source={source} type="tmdb" operations={custom} onSave={vi.fn()} onCancel={vi.fn()} onRefresh={vi.fn()} />);
     const user = userEvent.setup();
 
     await user.click(screen.getByRole('button', { name: '测试连接' }));
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('连接成功，但分类加载失败'));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('连接成功，但配置选项加载失败'));
     expect(screen.getByRole('button', { name: '测试连接' })).toBeEnabled();
     expect(screen.getByLabelText('内容分类')).toBeEnabled();
     expect(screen.getByLabelText('官方分类')).toBeDisabled();
@@ -343,11 +408,42 @@ describe('SourceEditor lossless editing', () => {
     await expect(saveUnchanged(source)).resolves.toEqual({ ...source, updatedAt: expect.any(Number) });
   });
 
+  it('renders TMDB language and region as choices and saves the selected codes', async () => {
+    const user = userEvent.setup();
+    const source: TmdbSourceConfig = { id: 'tmdb-options', name: 'TMDB', type: 'tmdb', enabled: true, createdAt: 1, updatedAt: 1, token: 'token', media: 'movie', feed: 'popular', discoverFilters: {} };
+    const onSave = vi.fn(async () => undefined);
+    render(<SourceEditor source={source} type="tmdb" operations={operations} onSave={onSave} onCancel={vi.fn()} onRefresh={vi.fn()} />);
+
+    expect(screen.getByLabelText('语言')).toHaveProperty('tagName', 'SELECT');
+    expect(screen.getByLabelText('地区')).toHaveProperty('tagName', 'SELECT');
+    expect(screen.getByLabelText('语言')).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: '测试连接' }));
+    await waitFor(() => expect(screen.getByLabelText('语言')).toBeEnabled());
+    await user.selectOptions(screen.getByLabelText('语言'), 'zh-CN');
+    await user.selectOptions(screen.getByLabelText('地区'), 'CN');
+    await user.click(screen.getByRole('button', { name: '保存并使用' }));
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ discoverFilters: expect.objectContaining({ language: 'zh-CN', region: 'CN' }) }));
+  });
+
+  it('preserves saved TMDB locale codes that are absent from the latest option lists', async () => {
+    const source: TmdbSourceConfig = { id: 'tmdb-legacy-options', name: 'TMDB', type: 'tmdb', enabled: true, createdAt: 1, updatedAt: 1, token: 'token', media: 'movie', feed: 'popular', discoverFilters: { language: 'es-MX', region: 'MX' } };
+    const onSave = vi.fn(async () => undefined);
+    render(<SourceEditor source={source} type="tmdb" operations={operations} onSave={onSave} onCancel={vi.fn()} onRefresh={vi.fn()} />);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: '测试连接' }));
+    await waitFor(() => expect(screen.getByLabelText('语言')).toBeEnabled());
+    expect(screen.getByLabelText('语言')).toHaveValue('es-MX');
+    expect(screen.getByLabelText('地区')).toHaveValue('MX');
+    await userEvent.setup().click(screen.getByRole('button', { name: '保存并使用' }));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ discoverFilters: expect.objectContaining({ language: 'es-MX', region: 'MX' }) }));
+  });
+
   it('switches TMDB to Discover when an official genre is selected so the category affects API results', async () => {
     const user = userEvent.setup();
     const source: TmdbSourceConfig = { id: 'tmdb-genre', name: 'TMDB', type: 'tmdb', enabled: true, createdAt: 1, updatedAt: 1, token: 'token', media: 'movie', feed: 'popular', discoverFilters: {} };
     const onSave = vi.fn(async () => undefined);
-    render(<SourceEditor source={source} type="tmdb" operations={{ ...operations, loadTmdbMetadata: vi.fn(async () => ({ ok: true as const, genres: [{ id: 28, name: 'Action' }] })) }} onSave={onSave} onCancel={vi.fn()} onRefresh={vi.fn()} />);
+    render(<SourceEditor source={source} type="tmdb" operations={{ ...operations, loadTmdbMetadata: vi.fn(async () => ({ ok: true as const, genres: [{ id: 28, name: 'Action' }], languages: ['en-US', 'zh-CN'], regions: ['CN', 'US'] })) }} onSave={onSave} onCancel={vi.fn()} onRefresh={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: '测试连接' }));
     await screen.findByRole('option', { name: 'Action' });
@@ -481,7 +577,7 @@ describe('SourceEditor lossless editing', () => {
     const source: TmdbSourceConfig = { id: 'tmdb-late', name: 'TMDB', type: 'tmdb', enabled: true, createdAt: 1, updatedAt: 1, token: 'old-token', media: 'movie', feed: 'popular', discoverFilters: {} };
     let resolveTest!: (result: { ok: true }) => void;
     const test = vi.fn(() => new Promise<{ ok: true }>((resolve) => { resolveTest = resolve; }));
-    const loadTmdbMetadata = vi.fn(async () => ({ ok: true as const, genres: [] }));
+    const loadTmdbMetadata = vi.fn(async () => ({ ok: true as const, genres: [], languages: ['en-US', 'zh-CN'], regions: ['CN', 'US'] }));
     render(<SourceEditor source={source} type="tmdb" operations={{ ...operations, test, loadTmdbMetadata }} onSave={vi.fn()} onCancel={vi.fn()} onRefresh={vi.fn()} />);
     const user = userEvent.setup(); await user.click(screen.getByRole('button', { name: '测试连接' }));
     await editIdentity(user);
@@ -493,7 +589,7 @@ describe('SourceEditor lossless editing', () => {
   it('does not request dynamic browser host permission for the built-in TMDB provider', async () => {
     const source: TmdbSourceConfig = { id: 'tmdb-static-permission', name: 'TMDB', type: 'tmdb', enabled: true, createdAt: 1, updatedAt: 1, token: 'token', media: 'movie', feed: 'popular', discoverFilters: {} };
     const test = vi.fn(async () => ({ ok: true as const }));
-    const loadTmdbMetadata = vi.fn(async () => ({ ok: true as const, genres: [] }));
+    const loadTmdbMetadata = vi.fn(async () => ({ ok: true as const, genres: [], languages: ['en-US', 'zh-CN'], regions: ['CN', 'US'] }));
     const withOriginPermissions: SourceOperations['withOriginPermissions'] = vi.fn(async (_urls, operation) => ({ ok: true as const, value: await operation() }));
     render(<SourceEditor source={source} type="tmdb" operations={{ ...operations, test, loadTmdbMetadata, withOriginPermissions }} onSave={vi.fn()} onCancel={vi.fn()} onRefresh={vi.fn()} />);
     const user = userEvent.setup();
@@ -516,11 +612,11 @@ describe('SourceEditor lossless editing', () => {
     const source: TmdbSourceConfig = { id: 'tmdb-filter-late', name: 'TMDB', type: 'tmdb', enabled: true, createdAt: 1, updatedAt: 1, token: 'token', media: 'movie', feed: 'discover', discoverFilters: {} };
     let resolveTest!: (result: { ok: true }) => void;
     const test = vi.fn(() => new Promise<{ ok: true }>((resolve) => { resolveTest = resolve; }));
-    const loadTmdbMetadata = vi.fn(async () => ({ ok: true as const, genres: [{ id: 28, name: 'Action' }] }));
+    const loadTmdbMetadata = vi.fn(async () => ({ ok: true as const, genres: [{ id: 28, name: 'Action' }], languages: ['en-US', 'zh-CN'], regions: ['CN', 'US'] }));
     render(<SourceEditor source={source} type="tmdb" operations={{ ...operations, test, loadTmdbMetadata }} onSave={vi.fn()} onCancel={vi.fn()} onRefresh={vi.fn()} />);
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: '测试连接' }));
-    await user.type(screen.getByLabelText('语言'), 'zh-CN');
+    await user.type(screen.getByLabelText('结果页'), '2');
     resolveTest({ ok: true });
 
     await waitFor(() => expect(screen.getByLabelText('官方分类')).toBeEnabled());
@@ -546,8 +642,8 @@ describe('SourceEditor lossless editing', () => {
   it.each([
     ['feed', async (user: ReturnType<typeof userEvent.setup>) => user.selectOptions(screen.getByLabelText('内容分类'), 'popular')],
     ['genre', async (user: ReturnType<typeof userEvent.setup>) => user.selectOptions(screen.getByLabelText('官方分类'), '28')],
-    ['language', async (user: ReturnType<typeof userEvent.setup>) => user.type(screen.getByLabelText('语言'), 'zh-CN')],
-    ['region', async (user: ReturnType<typeof userEvent.setup>) => user.type(screen.getByLabelText('地区'), 'CN')],
+    ['language', async (user: ReturnType<typeof userEvent.setup>) => user.selectOptions(screen.getByLabelText('语言'), 'zh-CN')],
+    ['region', async (user: ReturnType<typeof userEvent.setup>) => user.selectOptions(screen.getByLabelText('地区'), 'CN')],
     ['year', async (user: ReturnType<typeof userEvent.setup>) => user.type(screen.getByLabelText('上映年份'), '2026')],
     ['date from', async (user: ReturnType<typeof userEvent.setup>) => user.type(screen.getByLabelText('上映日期从'), '2026-01-01')],
     ['date to', async (user: ReturnType<typeof userEvent.setup>) => user.type(screen.getByLabelText('上映日期至'), '2026-12-31')],

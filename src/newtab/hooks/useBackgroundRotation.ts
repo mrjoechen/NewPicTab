@@ -204,11 +204,44 @@ function uniqueSourceEntries(entries: readonly BackgroundImage[]): BackgroundIma
   });
 }
 
+function imageIdentity(image: BackgroundImage): string {
+  return JSON.stringify([image.sourceId, image.id]);
+}
+
+function sameImageVersion(left: BackgroundImage, right: BackgroundImage): boolean {
+  return left.sourceId === right.sourceId && left.id === right.id && left.url === right.url;
+}
+
+function isFailedImage(failures: ReadonlyMap<string, string>, image: BackgroundImage): boolean {
+  return failures.get(imageIdentity(image)) === image.url;
+}
+
+function failedIdsForEntries(
+  entries: readonly BackgroundImage[],
+  failures: ReadonlyMap<string, string>
+): string[] {
+  const current = new Map(entries.map((entry) => [imageIdentity(entry), entry]));
+  const seen = new Set<string>();
+  const failedIds: string[] = [];
+  for (const [identity, url] of failures) {
+    const entry = current.get(identity);
+    if (entry?.url === url && !seen.has(entry.id)) {
+      seen.add(entry.id);
+      failedIds.push(entry.id);
+    }
+  }
+  return failedIds;
+}
+
+function sameStringArray(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
 function sequentialCandidates(
   entries: readonly BackgroundImage[],
   current: BackgroundImage | null,
   direction: BackgroundDirection,
-  failedIds: ReadonlySet<string>
+  failures: ReadonlyMap<string, string>
 ): BackgroundImage[] {
   if (entries.length === 0) return [];
   const currentIndex = current === null
@@ -224,7 +257,7 @@ function sequentialCandidates(
     const index = (start + delta + entries.length) % entries.length;
     const entry = entries[index]!;
     const isCurrent = current?.id === entry.id && current.sourceId === entry.sourceId;
-    if (!isCurrent && !failedIds.has(entry.id)) candidates.push(entry);
+    if (!isCurrent && !isFailedImage(failures, entry)) candidates.push(entry);
   }
   return candidates;
 }
@@ -232,10 +265,10 @@ function sequentialCandidates(
 function shuffledCandidates(
   entries: readonly BackgroundImage[],
   current: BackgroundImage | null,
-  failedIds: ReadonlySet<string>,
+  failures: ReadonlyMap<string, string>,
   rng?: () => number
 ): BackgroundImage[] {
-  const available = entries.filter((entry) => !failedIds.has(entry.id));
+  const available = entries.filter((entry) => !isFailedImage(failures, entry));
   const byId = new Map(available.map((entry) => [entry.id, entry]));
   const bag = new ShuffleBag([...byId.keys()], { lastId: current?.id, rng });
   const candidates: BackgroundImage[] = [];
@@ -283,7 +316,7 @@ export function useBackgroundRotation({
   const rngRef = useRef(rng);
   const requestRef = useRef(0);
   const mountedRef = useRef(false);
-  const failedRef = useRef(new Set<string>());
+  const failedRef = useRef(new Map<string, string>());
   const shuffleQueueRef = useRef<BackgroundImage[]>([]);
   const shuffleHistoryRef = useRef<ShuffleHistoryNode[]>([]);
   const shuffleHistoryIndexRef = useRef(-1);
@@ -312,7 +345,7 @@ export function useBackgroundRotation({
     if (order === 'shuffle') {
       const validIds = new Set(sourceEntries.map((entry) => entry.id));
       shuffleQueueRef.current = shuffleQueueRef.current.filter((entry) =>
-        validIds.has(entry.id) && !failedRef.current.has(entry.id)
+        validIds.has(entry.id) && !isFailedImage(failedRef.current, entry)
       );
 
       const history = shuffleHistoryRef.current;
@@ -325,7 +358,7 @@ export function useBackgroundRotation({
 
       if (historyNodes.length > 0 || direction === 'previous') {
         candidates = historyNodes
-          .filter((node) => !failedRef.current.has(node.image.id))
+          .filter((node) => !isFailedImage(failedRef.current, node.image))
           .map((node) => ({
             image: node.image,
             historyOccurrence: node.occurrence,
@@ -354,34 +387,37 @@ export function useBackgroundRotation({
         failedRef.current
       ).map((image) => ({ image, fromShuffleQueue: false }));
     }
-    const remaining = [...candidates];
+    let remaining = [...candidates];
     const deadline = Date.now() + finiteDuration(operationBudgetMs, DEFAULT_OPERATION_BUDGET_MS);
     publish({ ...stateRef.current, isDecoding: remaining.length > 0 });
+    let claimedInitialId: string | null = null;
 
-    while (remaining.length > 0 && mountedRef.current && !signal.aborted && request === requestRef.current) {
-      const budgetBeforeClaim = deadline - Date.now();
-      if (budgetBeforeClaim <= 0) break;
-
-      let operationCandidate: OperationCandidate | undefined;
-      if (cursorStore && claimInitialCandidate) {
+    if (cursorStore && claimInitialCandidate && remaining.length > 0) {
+      const claimBudget = deadline - Date.now();
+      if (claimBudget <= 0) remaining = [];
+      else {
         try {
           let claimedId: string | null = null;
           await runBounded(async () => {
             claimedId = await cursorStore.claim(cursorScope, remaining.map(({ image }) => image.id));
-          }, budgetBeforeClaim, signal, 'Background cursor claim timed out.');
+          }, claimBudget, signal, 'Background cursor claim timed out.');
           const index = remaining.findIndex(({ image }) => image.id === claimedId);
-          if (index < 0) break;
-          operationCandidate = remaining.splice(index, 1)[0];
+          if (index < 0) remaining = [];
+          else {
+            claimedInitialId = claimedId;
+            remaining = [...remaining.slice(index), ...remaining.slice(0, index)];
+          }
         } catch (error) {
-          if (error instanceof CancelledOperationError || error instanceof TimedOperationError) break;
-          operationCandidate = remaining.shift();
+          if (error instanceof CancelledOperationError || error instanceof TimedOperationError) remaining = [];
         }
-      } else {
-        operationCandidate = remaining.shift();
       }
+    }
+
+    while (remaining.length > 0 && mountedRef.current && !signal.aborted && request === requestRef.current) {
+      const operationCandidate = remaining.shift();
       if (!operationCandidate) break;
       const candidate = operationCandidate.image;
-      if (failedRef.current.has(candidate.id)) continue;
+      if (isFailedImage(failedRef.current, candidate)) continue;
       if (order === 'shuffle' && operationCandidate.fromShuffleQueue) {
         shuffleQueueRef.current = shuffleQueueRef.current.filter((entry) => entry.id !== candidate!.id);
       }
@@ -405,18 +441,22 @@ export function useBackgroundRotation({
       } catch (error) {
         if (error instanceof CancelledOperationError) break;
         if (!mountedRef.current || request !== requestRef.current) return;
-        failedRef.current.add(candidate.id);
+        failedRef.current.set(imageIdentity(candidate), candidate.url);
         if (order === 'shuffle') {
-          shuffleQueueRef.current = shuffleQueueRef.current.filter((entry) => entry.id !== candidate!.id);
+          shuffleQueueRef.current = shuffleQueueRef.current.filter((entry) => !sameImageVersion(entry, candidate));
           const currentHistoryNode = shuffleHistoryRef.current[shuffleHistoryIndexRef.current];
           shuffleHistoryRef.current = shuffleHistoryRef.current.filter((node) =>
-            node.occurrence === currentHistoryNode?.occurrence || node.image.id !== candidate!.id
+            node.occurrence === currentHistoryNode?.occurrence || !sameImageVersion(node.image, candidate)
           );
           shuffleHistoryIndexRef.current = currentHistoryNode
             ? shuffleHistoryRef.current.findIndex((node) => node.occurrence === currentHistoryNode.occurrence)
             : Math.min(shuffleHistoryIndexRef.current, shuffleHistoryRef.current.length - 1);
         }
-        publish({ ...stateRef.current, failedIds: [...failedRef.current], isDecoding: remaining.length > 0 });
+        publish({
+          ...stateRef.current,
+          failedIds: failedIdsForEntries(entriesRef.current, failedRef.current),
+          isDecoding: remaining.length > 0
+        });
         continue;
       }
 
@@ -440,10 +480,10 @@ export function useBackgroundRotation({
         current: candidate,
         previous: displayed?.id === candidate.id && displayed.sourceId === candidate.sourceId ? null : displayed,
         direction,
-        failedIds: [...failedRef.current],
+        failedIds: failedIdsForEntries(entriesRef.current, failedRef.current),
         isDecoding: false
       });
-      if (cursorStore && !claimInitialCandidate) {
+      if (cursorStore && (!claimInitialCandidate || (claimedInitialId !== null && candidate.id !== claimedInitialId))) {
         const updateBudget = deadline - Date.now();
         if (updateBudget > 0) {
           try {
@@ -496,7 +536,7 @@ export function useBackgroundRotation({
     requestRef.current += 1;
     flightRef.current?.controller.abort();
     flightRef.current = null;
-    failedRef.current = new Set();
+    failedRef.current = new Map();
     shuffleQueueRef.current = [];
     shuffleHistoryRef.current = [];
     shuffleHistoryIndexRef.current = -1;
@@ -520,8 +560,13 @@ export function useBackgroundRotation({
       : -1;
     const current = currentEntry(stateRef.current.current) ?? stateRef.current.current;
     const previous = currentEntry(stateRef.current.previous);
-    if (current !== stateRef.current.current || previous !== stateRef.current.previous) {
-      publish({ ...stateRef.current, current, previous });
+    const failedIds = failedIdsForEntries(entries, failedRef.current);
+    if (
+      current !== stateRef.current.current
+      || previous !== stateRef.current.previous
+      || !sameStringArray(failedIds, stateRef.current.failedIds)
+    ) {
+      publish({ ...stateRef.current, current, previous, failedIds });
     }
   }, [entries, entrySignature, incrementalEntries, publish]);
 
@@ -530,7 +575,7 @@ export function useBackgroundRotation({
     flightRef.current?.controller.abort();
     flightRef.current = null;
     const request = ++requestRef.current;
-    failedRef.current = new Set();
+    failedRef.current = new Map();
     shuffleQueueRef.current = [];
     shuffleHistoryRef.current = [];
     shuffleHistoryIndexRef.current = -1;
@@ -554,7 +599,7 @@ export function useBackgroundRotation({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (isTextEditingTarget(event.target)) return;
+      if (event.repeat || isTextEditingTarget(event.target)) return;
       if (event.key === 'ArrowRight') void goNext();
       if (event.key === 'ArrowLeft') void goPrevious();
     };
@@ -562,12 +607,29 @@ export function useBackgroundRotation({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [goNext, goPrevious]);
 
+  const currentTimerKey = state.current
+    ? JSON.stringify([state.current.sourceId, state.current.id, state.current.url])
+    : '';
+  const failedTimerKey = JSON.stringify(state.failedIds);
+
   useEffect(() => {
-    if (changeOn !== 'interval') return;
+    if (changeOn !== 'interval' || !currentTimerKey || state.isDecoding) return;
     const safeMinutes = Number.isFinite(intervalMinutes) ? Math.max(1, intervalMinutes) : 1;
-    const timer = window.setInterval(() => void goNext(), safeMinutes * 60_000);
-    return () => window.clearInterval(timer);
-  }, [changeOn, goNext, intervalMinutes]);
+    let active = true;
+    let timer: number | undefined;
+    const schedule = () => {
+      if (!active) return;
+      timer = window.setTimeout(() => {
+        timer = undefined;
+        void goNext().then(schedule, schedule);
+      }, safeMinutes * 60_000);
+    };
+    schedule();
+    return () => {
+      active = false;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [changeOn, currentTimerKey, failedTimerKey, goNext, intervalMinutes, state.isDecoding]);
 
   return { ...state, goNext, goPrevious };
 }

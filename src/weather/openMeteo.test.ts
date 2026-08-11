@@ -25,6 +25,19 @@ describe('OpenMeteoService', () => {
     expect(Object.fromEntries(url.searchParams)).toMatchObject({ name: '上海', count: '6', language: 'zh' });
   });
 
+  it('uses English separators and condition labels for an English locale', async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ results: [
+      { id: 1, name: 'Shanghai', latitude: 31.2304, longitude: 121.4737, country: 'China', admin1: 'Shanghai' }
+    ] }), { status: 200 }));
+    const service = new OpenMeteoService({ fetcher });
+
+    await expect(service.searchCities('Shanghai', 'en-US')).resolves.toEqual([
+      { id: 1, name: 'Shanghai', label: 'Shanghai, China', latitude: 31.2304, longitude: 121.4737, country: 'China', admin1: 'Shanghai' }
+    ]);
+    expect(describeWeatherCode(0, true, 'en-US').label).toBe('Clear');
+    expect(describeWeatherCode(95, false, 'en-US').label).toBe('Thunderstorm');
+  });
+
   it('bounds provider-controlled city names before returning labels to the UI', async () => {
     const huge = '城'.repeat(500);
     const service = new OpenMeteoService({ fetcher: vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ results: [{ id: 1, name: huge, latitude: 1, longitude: 2, country: huge }] }), { status: 200 })) });

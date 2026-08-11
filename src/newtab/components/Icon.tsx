@@ -29,7 +29,8 @@ export type IconName =
   | 'settings'
   | 'sparkle'
   | 'test'
-  | 'trash';
+  | 'trash'
+  | 'wand';
 
 export interface IconProps extends SVGProps<SVGSVGElement> {
   name: IconName;
@@ -73,5 +74,6 @@ function iconPath(name: IconName) {
     case 'sparkle': return <><path d="M12 3l1.8 5 5.2 1.8-5.2 1.8L12 17l-1.8-5.4L5 9.8 10.2 8 12 3Z" /><path d="M5 16l.8 2.2L8 19l-2.2.8L5 22l-.8-2.2L2 19l2.2-.8L5 16Z" /></>;
     case 'test': return <><path d="M9 3v5l-4.8 8.4A3 3 0 0 0 6.8 21h10.4a3 3 0 0 0 2.6-4.6L15 8V3" /><path d="M8 3h8" /><path d="M7 15h10" /></>;
     case 'trash': return <><path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M6 7l1 14h10l1-14" /><path d="M9 7V4h6v3" /></>;
+    case 'wand': return <><path d="m4 20 11-11" /><path d="m13 5 2-2 6 6-2 2" /><path d="m12 6 6 6" /><path d="M5 4v3" /><path d="M3.5 5.5h3" /><path d="M19 16v4" /><path d="M17 18h4" /></>;
   }
 }

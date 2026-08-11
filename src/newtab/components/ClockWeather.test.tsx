@@ -36,6 +36,14 @@ describe('ClockWeather', () => {
     expect(screen.getByTestId('clock')).toHaveTextContent(/1:05:07\s?PM/i);
   });
 
+  it('localizes weather conditions and accessibility labels with the interface language', () => {
+    const value = widgets(); value.date.enabled = false; value.weather.enabled = true;
+    render(<ClockWeather settings={value} locale="en-US" weather={{ location: 'Shanghai, China', temperature: 23, temperatureUnit: '°C', weatherCode: 1, isDay: true, fetchedAt: 1, stale: false }} />);
+    expect(screen.getByLabelText('Time and weather')).toBeInTheDocument();
+    expect(screen.getByTestId('weather')).toHaveTextContent('Mostly clear');
+    expect(screen.queryByText('晴间多云')).not.toBeInTheDocument();
+  });
+
   it('renders date without a clock and disables optional motion for reduced-motion users', () => {
     const matchMedia = vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as MediaQueryList));
     Object.defineProperty(window, 'matchMedia', { configurable: true, value: matchMedia });

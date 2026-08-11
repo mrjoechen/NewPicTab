@@ -1,10 +1,10 @@
 import type { WidgetSettings } from './types';
 
 export const SEARCH_ENGINES = {
-  google: { label: 'Google', iconUrl: 'https://www.google.com/favicon.ico', template: 'https://www.google.com/search?q={query}' },
-  bing: { label: 'Bing', iconUrl: 'https://www.bing.com/favicon.ico', template: 'https://www.bing.com/search?q={query}' },
-  duckduckgo: { label: 'DuckDuckGo', iconUrl: 'https://duckduckgo.com/favicon.ico', template: 'https://duckduckgo.com/?q={query}' },
-  baidu: { label: 'Baidu', iconUrl: 'https://www.baidu.com/favicon.ico', template: 'https://www.baidu.com/s?wd={query}' }
+  google: { label: 'Google', iconUrl: '/assets/search-engines/google.ico', template: 'https://www.google.com/search?q={query}' },
+  bing: { label: 'Bing', iconUrl: '/assets/search-engines/bing.ico', template: 'https://www.bing.com/search?q={query}' },
+  duckduckgo: { label: 'DuckDuckGo', iconUrl: '/assets/search-engines/duckduckgo.ico', template: 'https://duckduckgo.com/?q={query}' },
+  baidu: { label: 'Baidu', iconUrl: '/assets/search-engines/baidu.ico', template: 'https://www.baidu.com/s?wd={query}' }
 } as const;
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 const ENCODED_CONTROL_CHARACTERS = /%(?:0[0-9a-f]|1[0-9a-f]|7f)/i;

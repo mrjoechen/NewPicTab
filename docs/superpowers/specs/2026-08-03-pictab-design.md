@@ -28,7 +28,6 @@ The visual direction follows the supplied reference: an immersive image fills th
 - No social feed, news, quotes, tasks, recommendations, ads, or other dashboard content.
 - No remote code execution or arbitrary user-provided JavaScript in generic API mappings.
 - No commercial distribution in the first release.
-- No active Pexels or Unsplash integration until written authorization permits a wallpaper/new-tab use case.
 
 ## 4. Confirmed Product Decisions
 
@@ -168,12 +167,6 @@ Available controls:
 - Category names and genre IDs are fetched from TMDB rather than hard-coded as a permanent list.
 
 The About section contains the required TMDB attribution and approved logo treatment. The implementation must be re-reviewed before any commercial distribution.
-
-### 5.7 Unsplash and Pexels Status
-
-Unsplash and Pexels appear only as disabled informational entries. Each entry explains that the official API currently restricts wallpaper-style applications and links to its official API guidelines. There is no Key field, connection test, or provider-specific request path until written authorization is obtained and the design is reviewed again.
-
-This restriction does not remove the neutral direct URL or generic JSON API connectors, but PicTab does not provide instructions for bypassing a provider's terms through those connectors.
 
 ## 6. Time, Date, Weather, Search, and Shortcuts
 
@@ -315,7 +308,6 @@ If persisted settings are partially invalid after an update, the migration prese
 - Switch between two sources and see the selected source immediately.
 - Enter an invalid credential and confirm the page stays usable.
 - Configure a TMDB token, load official categories after successful testing, and render a backdrop.
-- Confirm Unsplash/Pexels remain informational and do not accept credentials.
 - Toggle every widget and reload to verify local persistence.
 - Add and reorder shortcuts, submit a search, and exercise keyboard navigation.
 - Verify Fade, Slide, Ken Burns, None, and reduced-motion overrides.
@@ -328,7 +320,7 @@ If persisted settings are partially invalid after an update, the migration prese
 - A clean browser profile can configure and use all enabled source types.
 - Remote failure, invalid credentials, empty sources, offline mode, and corrupt settings all retain a usable new-tab page.
 - Main-page resting state contains only the widgets the user enabled and the low-emphasis settings entry.
-- README documents installation, permissions, local credential risks, TMDB setup/attribution, and the disabled Unsplash/Pexels rationale.
+- README documents installation, permissions, local credential risks, and TMDB setup/attribution.
 
 ## 12. Official References
 
@@ -337,6 +329,4 @@ If persisted settings are partially invalid after an update, the migration prese
 - TMDB API settings: `https://www.themoviedb.org/settings/api`
 - TMDB finding data: `https://developer.themoviedb.org/docs/finding-data`
 - TMDB attribution FAQ: `https://developer.themoviedb.org/docs/faq`
-- Unsplash API guidelines: `https://help.unsplash.com/en/articles/2511245-unsplash-api-guidelines`
-- Pexels API documentation and guidelines: `https://www.pexels.com/api/documentation/`
 - Open-Meteo documentation: `https://open-meteo.com/en/docs`

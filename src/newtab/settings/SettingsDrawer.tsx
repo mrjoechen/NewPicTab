@@ -9,6 +9,7 @@ import type { WeatherSnapshot } from '../../weather/openMeteo';
 import { ShortcutsPanel } from './ShortcutsPanel';
 import { AboutPanel } from './AboutPanel';
 import { Icon, type IconName } from '../components/Icon';
+import { LanguageProvider, useDocumentLocalization } from '../i18n';
 
 type PanelName = 'sources' | 'appearance' | 'time' | 'weather' | 'search' | 'shortcuts' | 'about';
 
@@ -30,8 +31,8 @@ export interface SettingsDrawerProps {
 
 const NAVIGATION: { id: PanelName; icon: IconName; label: Record<InterfaceLanguage, string> }[] = [
   { id: 'sources', icon: 'image', label: { 'zh-CN': '图片源', 'en-US': 'Sources' } },
-  { id: 'appearance', icon: 'sparkle', label: { 'zh-CN': '背景与动效', 'en-US': 'Background' } },
-  { id: 'time', icon: 'clock', label: { 'zh-CN': '时间日期', 'en-US': 'Time' } },
+  { id: 'appearance', icon: 'wand', label: { 'zh-CN': '动效', 'en-US': 'Effect' } },
+  { id: 'time', icon: 'clock', label: { 'zh-CN': '时间和日期', 'en-US': 'Time and Date' } },
   { id: 'weather', icon: 'cloud', label: { 'zh-CN': '天气', 'en-US': 'Weather' } },
   { id: 'search', icon: 'search', label: { 'zh-CN': '搜索', 'en-US': 'Search' } },
   { id: 'shortcuts', icon: 'globe', label: { 'zh-CN': '快捷网址', 'en-US': 'Shortcuts' } },
@@ -53,6 +54,7 @@ export function SettingsDrawer({ settings, onUpdate, onChangeImage, operations =
   const closeRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const language = settings.interfaceLanguage;
+  useDocumentLocalization(language);
   const labels = {
     title: language === 'zh-CN' ? '设置' : 'Settings',
     open: language === 'zh-CN' ? '打开设置' : 'Open settings',
@@ -91,7 +93,7 @@ export function SettingsDrawer({ settings, onUpdate, onChangeImage, operations =
     };
   }, [backgroundElement, open]);
 
-  return <>
+  return <LanguageProvider language={language}>
     <button ref={triggerRef} className="settings-trigger icon-button" type="button" aria-label={labels.open} title={labels.open} onClick={() => { onOpen(); setOpen(true); }}><Icon name="settings" /></button>
     {open && <div className="drawer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
       <div ref={dialogRef} className="settings-drawer" role="dialog" aria-modal="true" aria-labelledby="settings-title">
@@ -113,7 +115,7 @@ export function SettingsDrawer({ settings, onUpdate, onChangeImage, operations =
         </div>
       </div>
     </div>}
-  </>;
+  </LanguageProvider>;
 }
 
 function focusableElements(root: HTMLElement | null): HTMLElement[] {

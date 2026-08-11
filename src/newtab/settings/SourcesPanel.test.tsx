@@ -19,7 +19,7 @@ function sourceOperations(overrides: Partial<SourceOperations> = {}): SourceOper
     test: vi.fn(async (): Promise<ConnectionTestResult> => ({ ok: true, entries: [] })),
     importLocal: vi.fn(async (_sourceId: string, files: File[]) => ({ imported: files.length, failures: [] })),
     delete: vi.fn(async () => undefined),
-    loadTmdbMetadata: vi.fn(async () => ({ ok: true as const, genres: [{ id: 28, name: '动作' }] })),
+    loadTmdbMetadata: vi.fn(async () => ({ ok: true as const, genres: [{ id: 28, name: '动作' }], languages: ['en-US', 'zh-CN'], regions: ['CN', 'US'] })),
     withOriginPermissions: vi.fn(async (_urls, operation) => ({ ok: true as const, value: await operation() })),
     ...overrides
   };
@@ -236,14 +236,6 @@ describe('SourcesPanel', () => {
     expect(screen.getByRole('status')).toHaveTextContent('目标文件夹已更新');
   });
 
-  it('explains credential storage and links each disabled provider to its official guide', async () => {
-    const user = userEvent.setup();
-    render(<Harness operations={sourceOperations()} />);
-    await user.click(screen.getByRole('button', { name: '添加图片源' }));
-    expect(screen.getByRole('link', { name: 'Unsplash 官方说明' })).toHaveAttribute('href', expect.stringContaining('unsplash.com'));
-    expect(screen.getByRole('link', { name: 'Pexels 官方说明' })).toHaveAttribute('href', expect.stringContaining('pexels.com'));
-  });
-
   it('adds multiple sources of the same type and activates the saved source immediately', async () => {
     const user = userEvent.setup();
     render(<Harness operations={sourceOperations()} />);
@@ -389,7 +381,7 @@ describe('SourcesPanel', () => {
     expect(screen.getByRole('button', { name: '确认删除' })).toBeEnabled();
   });
 
-  it('keeps TMDB categories locked until connection succeeds and then shows official genres', async () => {
+  it('keeps TMDB metadata options locked until connection succeeds and then shows official choices', async () => {
     const user = userEvent.setup();
     const operations = sourceOperations();
     render(<Harness operations={operations} />);
@@ -399,6 +391,8 @@ describe('SourcesPanel', () => {
     expect(screen.getByRole('link', { name: '申请 API Key' })).toHaveAttribute('href', 'https://www.themoviedb.org/settings/api');
     expect(screen.getByRole('link', { name: '查看接入指南' })).toHaveAttribute('href', 'https://developer.themoviedb.org/v4/docs/getting-started');
     expect(screen.getByLabelText('官方分类')).toBeDisabled();
+    expect(screen.getByLabelText('语言')).toBeDisabled();
+    expect(screen.getByLabelText('地区')).toBeDisabled();
 
     await user.type(screen.getByLabelText('图片源名称'), '电影背景');
     await user.type(screen.getByLabelText('API Read Token'), 'private-token');
@@ -406,6 +400,10 @@ describe('SourcesPanel', () => {
 
     await waitFor(() => expect(screen.getByLabelText('官方分类')).toBeEnabled());
     expect(screen.getByRole('option', { name: '动作' })).toBeInTheDocument();
+    expect(screen.getByLabelText('语言')).toBeEnabled();
+    expect(screen.getByLabelText('地区')).toBeEnabled();
+    expect(within(screen.getByLabelText('语言')).getByRole('option', { name: /中文.*zh-CN/ })).toBeInTheDocument();
+    expect(within(screen.getByLabelText('地区')).getByRole('option', { name: /中国.*CN/ })).toBeInTheDocument();
     expect(document.body).not.toHaveTextContent('private-token');
   });
 });

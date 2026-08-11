@@ -52,8 +52,12 @@ describe('WidgetsPanel', () => {
   it('edits clock and date independently through updater functions', async () => {
     const user = userEvent.setup(); const updaters: Array<(value: ReturnType<typeof createDefaultSettings>) => ReturnType<typeof createDefaultSettings>> = [];
     render(<WidgetsPanel section="time" settings={createDefaultSettings()} onUpdate={vi.fn((updater) => { updaters.push(updater); })} operations={operations()} />);
+    expect(screen.getByRole('heading', { name: '时间和日期' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: '日期语言' })).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: '日期语言' })).toHaveValue('');
     await user.click(screen.getByRole('checkbox', { name: '显示时间' }));
     await user.click(screen.getByRole('checkbox', { name: '显示农历' }));
+    await user.selectOptions(screen.getByRole('combobox', { name: '日期语言' }), 'en-US');
     await user.click(screen.getByRole('checkbox', { name: '显示日期' }));
     await user.click(screen.getByRole('checkbox', { name: '显示秒数' }));
     const size = screen.getByLabelText('文字大小');
@@ -67,7 +71,7 @@ describe('WidgetsPanel', () => {
     await user.selectOptions(screen.getByLabelText('显示位置'), 'top-left');
     let next = createDefaultSettings(); for (const updater of updaters) next = updater(next);
     expect(next.widgets.clock).toMatchObject({ enabled: false, showSeconds: true, size: 'large', scale: 1.35, position: 'top-left' });
-    expect(next.widgets.date).toMatchObject({ enabled: false, showLunar: true });
+    expect(next.widgets.date).toMatchObject({ enabled: false, showLunar: true, locale: 'en-US' });
   });
 
   it('keeps clock size dragging local until the range interaction commits', () => {
@@ -100,7 +104,7 @@ describe('WidgetsPanel', () => {
 
     expect(await screen.findByRole('button', { name: '选择 上海，中国' })).toBeInTheDocument();
     expect(screen.getByLabelText('搜索城市')).toHaveFocus();
-    expect(ops.searchCities).toHaveBeenCalledWith('上海', navigator.language);
+    expect(ops.searchCities).toHaveBeenCalledWith('上海', 'zh-CN');
     await user.click(screen.getByRole('button', { name: '选择 上海，中国' }));
     await new Promise((resolve) => setTimeout(resolve, 300));
     expect(searchCities).toHaveBeenCalledOnce();
@@ -109,6 +113,18 @@ describe('WidgetsPanel', () => {
     expect(ops.requestAccess).toHaveBeenCalledOnce(); expect(ops.getPosition).not.toHaveBeenCalled();
     let next = createDefaultSettings(); for (const updater of updaters) next = updater(next);
     expect(next.widgets.weather).toMatchObject({ enabled: true, mode: 'city', city: '上海，中国', latitude: 31.23, longitude: 121.47 });
+  });
+
+  it('uses the selected interface language for city search and location names', async () => {
+    const settings = createDefaultSettings(); settings.interfaceLanguage = 'en-US';
+    const ops = operations({ searchCities: vi.fn(async () => []), reverseGeocode: vi.fn(async () => 'Shanghai, China') });
+    render(<WidgetsPanel section="weather" settings={settings} onUpdate={vi.fn()} operations={ops} />);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText('搜索城市'), 'Paris');
+    await waitFor(() => expect(ops.searchCities).toHaveBeenCalledWith('Paris', 'en-US'));
+    await user.click(screen.getByRole('button', { name: '使用当前位置' }));
+    expect(ops.reverseGeocode).toHaveBeenCalledWith(31.2, 121.4, 'en-US');
   });
 
   it('keeps the city input enabled and focused while a live search is pending', async () => {
@@ -140,7 +156,7 @@ describe('WidgetsPanel', () => {
 
     await user.click(screen.getByRole('button', { name: '使用当前位置' }));
 
-    expect(ops.reverseGeocode).toHaveBeenCalledWith(31.2, 121.4, navigator.language);
+    expect(ops.reverseGeocode).toHaveBeenCalledWith(31.2, 121.4, 'zh-CN');
     expect(ops.getCurrent).toHaveBeenCalledWith({ location: '上海，中国', latitude: 31.2, longitude: 121.4 });
     let next = initial; for (const updater of updaters) next = updater(next);
     expect(next.widgets.weather).toMatchObject({ enabled: true, mode: 'coordinates', city: '上海，中国', latitude: 31.2, longitude: 121.4 });

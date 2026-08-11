@@ -145,7 +145,12 @@ export function createSourceOperations(localAdapter: LocalSourceAdapter): Source
     async loadTmdbMetadata(source: TmdbSourceConfig): Promise<TmdbMetadataResult> {
       const response = await sendBackgroundRequest({ source: 'tmdb-metadata', config: source });
       return response.ok && 'genres' in response
-        ? { ok: true, genres: response.genres.map(({ id, name }) => ({ id, name })) }
+        ? {
+            ok: true,
+            genres: response.genres.map(({ id, name }) => ({ id, name })),
+            languages: Array.isArray(response.languages) ? [...response.languages] : [],
+            regions: Array.isArray(response.regions) ? [...response.regions] : []
+          }
         : { ok: false, error: { message: failureMessage(response) } };
     },
     withOriginPermissions: runWithOriginPermissions,

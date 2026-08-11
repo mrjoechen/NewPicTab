@@ -248,6 +248,27 @@ describe('useBackgroundRotation', () => {
     expect(decodeImage).not.toHaveBeenCalled();
   });
 
+  it('claims once and persists the successful fallback after the claimed image fails', async () => {
+    const claim = vi.fn().mockResolvedValue('two');
+    const updateLatest = vi.fn().mockResolvedValue(undefined);
+    const cursorStore: RotationCursorStore = { claim, updateLatest };
+    const decodeImage = vi.fn(async (image: BackgroundImage) => {
+      if (image.id === 'two') throw new Error('cannot decode');
+    });
+    const { result } = renderHook(() => useBackgroundRotation({
+      entries: [one, two, three], generation: 'claimed-fallback', cursorStore, decodeImage
+    }));
+
+    await waitFor(() => expect(result.current.current).toEqual(three));
+
+    expect(decodeImage.mock.calls.map(([image]) => image.id)).toEqual(['two', 'three']);
+    expect(claim).toHaveBeenCalledTimes(1);
+    expect(claim).toHaveBeenCalledWith(expect.any(String), ['one', 'two', 'three']);
+    expect(result.current.failedIds).toEqual(['two']);
+    expect(updateLatest).toHaveBeenCalledOnce();
+    expect(updateLatest).toHaveBeenCalledWith(expect.any(String), 'three');
+  });
+
   it('automatically tries the remaining initial candidates after a decode failure', async () => {
     const decodeImage = vi.fn(async (image: BackgroundImage) => {
       if (image.id === 'one') throw new Error('cannot decode');
@@ -388,6 +409,7 @@ describe('useBackgroundRotation', () => {
       decodeImage
     }));
     await waitFor(() => expect(result.current.current).toEqual(three));
+    expect(updates).not.toHaveBeenCalled();
 
     await act(async () => result.current.goNext());
     expect(result.current.current).toEqual(one);
@@ -512,6 +534,29 @@ describe('useBackgroundRotation', () => {
     expect(decodeImage.mock.calls.map(([image]) => image.id)).toEqual(['two', 'three']);
   });
 
+  it('rebases the interval after successful manual navigation', async () => {
+    vi.useFakeTimers();
+    const decodeImage = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() => useBackgroundRotation({
+      entries: [one, two, three], changeOn: 'interval', intervalMinutes: 1, decodeImage
+    }));
+    await act(async () => Promise.resolve());
+    expect(result.current.current).toEqual(one);
+
+    await act(async () => vi.advanceTimersByTimeAsync(50_000));
+    await act(async () => result.current.goNext());
+    expect(result.current.current).toEqual(two);
+    decodeImage.mockClear();
+
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    expect(result.current.current).toEqual(two);
+    expect(decodeImage).not.toHaveBeenCalled();
+
+    await act(async () => vi.advanceTimersByTimeAsync(50_000));
+    expect(result.current.current).toEqual(three);
+    expect(decodeImage.mock.calls.map(([image]) => image.id)).toEqual(['three']);
+  });
+
   it('times out a hanging injected decoder, ignores its late rejection, and continues', async () => {
     vi.useFakeTimers();
     const hanging = deferred();
@@ -614,6 +659,39 @@ describe('useBackgroundRotation', () => {
     await act(async () => vi.advanceTimersByTimeAsync(60_000));
 
     expect(result.current.current?.id).toBe('10');
+  });
+
+  it('does not transfer a delayed old-URL failure to an incremental replacement', async () => {
+    const oldTwo: BackgroundImage = { ...two, url: 'https://images.test/two-old.jpg' };
+    const newTwo: BackgroundImage = { ...two, url: 'https://images.test/two-new.jpg' };
+    const oldTwoDecode = deferred();
+    const decodeImage = vi.fn((image: BackgroundImage) => {
+      if (image.url === oldTwo.url) return oldTwoDecode.promise;
+      if (image.id === 'three') return Promise.reject(new Error('three remains unavailable'));
+      return Promise.resolve();
+    });
+    const { result, rerender } = renderHook(
+      ({ entries }) => useBackgroundRotation({ entries, incrementalEntries: true, generation: 'remote', decodeImage }),
+      { initialProps: { entries: [one, oldTwo, three] } }
+    );
+    await waitFor(() => expect(result.current.current).toEqual(one));
+
+    const navigation = result.current.goNext();
+    await waitFor(() => expect(decodeImage).toHaveBeenCalledWith(oldTwo, expect.any(AbortSignal)));
+    rerender({ entries: [one, newTwo, three] });
+    await act(async () => {
+      oldTwoDecode.reject(new Error('old URL failed late'));
+      await navigation;
+    });
+
+    expect(result.current.current).toEqual(one);
+    expect(result.current.failedIds).toEqual(['three']);
+    decodeImage.mockClear();
+
+    await act(async () => result.current.goNext());
+
+    expect(result.current.current).toEqual(newTwo);
+    expect(decodeImage.mock.calls.map(([image]) => image.url)).toEqual([newTwo.url]);
   });
 
   it('keeps the current shuffle bag and valid history when entries append and old entries prune', async () => {
@@ -835,6 +913,42 @@ describe('useBackgroundRotation', () => {
     pending.resolve();
   });
 
+  it('re-arms after an interval tick coalesces with pending cursor persistence', async () => {
+    vi.useFakeTimers();
+    const pendingCursorUpdate = deferred();
+    const cursorStore: RotationCursorStore = {
+      async claim(_scope, candidateIds) { return candidateIds[0] ?? null; },
+      async updateLatest() { await pendingCursorUpdate.promise; }
+    };
+    const decodeImage = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() => useBackgroundRotation({
+      entries: [one, two, three],
+      changeOn: 'interval',
+      intervalMinutes: 1,
+      cursorStore,
+      decodeImage,
+      operationBudgetMs: 180_000
+    }));
+    await act(async () => Promise.resolve());
+    expect(result.current.current).toEqual(one);
+
+    const navigation = result.current.goNext();
+    await act(async () => Promise.resolve());
+    expect(result.current.current).toEqual(two);
+    decodeImage.mockClear();
+
+    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+    expect(result.current.current).toEqual(two);
+    expect(decodeImage).not.toHaveBeenCalled();
+
+    pendingCursorUpdate.resolve();
+    await act(async () => navigation);
+    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+
+    expect(result.current.current).toEqual(three);
+    expect(decodeImage.mock.calls.map(([image]) => image.id)).toEqual(['three']);
+  });
+
   it('aborts a hanging decode on unmount and safely absorbs its late rejection', async () => {
     const pending = deferred();
     let first = true;
@@ -857,18 +971,24 @@ describe('useBackgroundRotation', () => {
     await Promise.resolve();
   });
 
-  it('handles arrow keys but ignores editable targets', async () => {
+  it('handles arrow keys but ignores editable targets and key auto-repeat', async () => {
     const decodeImage = vi.fn().mockResolvedValue(undefined);
     const { result } = renderHook(() =>
       useBackgroundRotation({ entries: [one, two], decodeImage })
     );
     await waitFor(() => expect(result.current.current).toEqual(one));
+    decodeImage.mockClear();
 
     const input = document.createElement('input');
     document.body.append(input);
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
     await act(async () => Promise.resolve());
     expect(result.current.current).toEqual(one);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', repeat: true }));
+    await act(async () => Promise.resolve());
+    expect(result.current.current).toEqual(one);
+    expect(decodeImage).not.toHaveBeenCalled();
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
     await waitFor(() => expect(result.current.current).toEqual(two));
@@ -879,24 +999,27 @@ describe('useBackgroundRotation', () => {
     expect(isTextEditingTarget(document.body)).toBe(false);
   });
 
-  it('schedules only interval mode and clears its timer on unmount', async () => {
+  it('schedules only interval mode and clears its rotation timeout on unmount', async () => {
     vi.useFakeTimers();
-    const setIntervalSpy = vi.spyOn(window, 'setInterval');
-    const clearIntervalSpy = vi.spyOn(window, 'clearInterval');
+    const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
+    const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
     const decodeImage = vi.fn().mockResolvedValue(undefined);
 
     const newTab = renderHook(() =>
       useBackgroundRotation({ entries: [one, two], changeOn: 'new-tab', intervalMinutes: 2, decodeImage })
     );
-    expect(setIntervalSpy).not.toHaveBeenCalled();
+    await act(async () => Promise.resolve());
+    expect(setTimeoutSpy).not.toHaveBeenCalledWith(expect.any(Function), 120_000);
     newTab.unmount();
 
     const interval = renderHook(() =>
       useBackgroundRotation({ entries: [one, two], changeOn: 'interval', intervalMinutes: 2, decodeImage })
     );
-    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 120_000);
+    await act(async () => Promise.resolve());
+    expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 120_000);
 
     interval.unmount();
-    expect(clearIntervalSpy).toHaveBeenCalled();
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

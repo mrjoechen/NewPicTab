@@ -833,15 +833,24 @@ textarea {
 
 .drawer-close,
 .text-button {
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0 10px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0 9px;
+  align-items: center;
+  justify-content: center;
   border: 0;
   border-radius: 10px;
   color: rgb(237 241 239 / 0.72);
   background: transparent;
+  line-height: 1.2;
+  text-align: center;
   cursor: pointer;
   transition: color 180ms ease, background 180ms ease;
+}
+
+.drawer-close {
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .drawer-close:hover,
@@ -1007,13 +1016,18 @@ textarea {
 
 .shortcut-list__actions button,
 .shortcut-icon-preview button {
-  min-width: 44px;
-  min-height: 44px;
+  display: inline-flex;
+  min-width: 40px;
+  min-height: 40px;
   padding: 0 7px;
+  align-items: center;
+  justify-content: center;
   border: 0;
   border-radius: 9px;
   color: rgb(237 241 239 / 0.66);
   background: transparent;
+  line-height: 1.2;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -1201,6 +1215,16 @@ textarea {
   color: rgb(237 241 239 / 0.62);
   background: rgb(238 194 118 / 0.06);
   line-height: 1.5;
+}
+
+.webdav-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(3 6 8 / 0.66);
 }
 
 .webdav-picker {
@@ -1419,13 +1443,18 @@ textarea {
 }
 
 .button {
-  min-height: 46px;
-  padding: 0 18px;
+  display: inline-flex;
+  min-height: 42px;
+  padding: 0 16px;
+  align-items: center;
+  justify-content: center;
   border: 1px solid transparent;
   border-radius: 11px;
   color: #15201b;
   background: #e8efeb;
   font-weight: 620;
+  line-height: 1.2;
+  text-align: center;
   cursor: pointer;
   transition: transform 180ms ease, background 180ms ease, opacity 180ms ease;
 }
@@ -1443,14 +1472,14 @@ textarea {
 .button--icon-only,
 .text-button--icon-only {
   display: inline-grid;
-  width: 46px;
-  min-width: 46px;
+  width: 42px;
+  min-width: 42px;
   padding-inline: 0;
   place-items: center;
 }
 
 .button--with-icon {
-  padding-inline: 15px;
+  padding-inline: 14px;
 }
 
 .text-button--with-icon {
@@ -1458,8 +1487,8 @@ textarea {
 }
 
 .text-button--icon-only {
-  width: 44px;
-  min-width: 44px;
+  width: 40px;
+  min-width: 40px;
 }
 
 .button:hover:not(:disabled) {
@@ -1497,8 +1526,7 @@ textarea {
   margin-bottom: 20px;
 }
 
-.empty-state,
-.provider-disabled {
+.empty-state {
   display: grid;
   gap: 6px;
   padding: 18px;
@@ -1508,8 +1536,7 @@ textarea {
   line-height: 1.45;
 }
 
-.empty-state strong,
-.provider-disabled strong {
+.empty-state strong {
   color: rgb(237 241 239 / 0.78);
 }
 
@@ -1764,12 +1791,6 @@ textarea {
   line-height: 44px;
 }
 
-.provider-disabled a {
-  min-height: 44px;
-  color: #dbe9e1;
-  line-height: 44px;
-}
-
 .form-message {
   margin: 14px 0;
   padding: 12px 14px;
@@ -1792,25 +1813,42 @@ textarea {
   background: rgb(185 70 70 / 0.14);
 }
 
+.source-editor > .source-preview {
+  margin-top: 16px;
+}
+
 .source-preview {
+  max-height: 320px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 12px;
+  background: #171d20;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.source-preview__grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
-  max-height: 280px;
-  overflow: auto;
-  padding-right: 2px;
+  gap: 8px;
 }
 
 .source-preview__item {
   position: relative;
   display: block;
+  min-width: 0;
   overflow: hidden;
   aspect-ratio: 16 / 10;
   border-radius: 8px;
   background: rgb(5 9 11 / 0.34);
+  isolation: isolate;
 }
 
 .source-preview__item img {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
@@ -1840,13 +1878,17 @@ textarea {
 }
 
 .source-preview__loading {
-  grid-column: 1 / -1;
-  margin: 4px 0 0;
+  margin: 8px 0 0;
   padding: 10px;
   border-radius: 8px;
   color: rgb(237 241 239 / 0.58);
   text-align: center;
   background: rgb(255 255 255 / 0.045);
+}
+
+.source-preview__more {
+  display: flex;
+  margin: 8px auto 0;
 }
 
 .confirm-backdrop {
@@ -1890,10 +1932,8 @@ textarea {
 .about-block p { margin: 8px 0 0; color: rgb(237 241 239 / 0.62); line-height: 1.55; }
 .tmdb-attribution__logo { display: block; width: 96px; height: auto; margin: 2px 0 12px; }
 .about-links { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 10px; }
-.about-links a,
-.about-provider-grid a { min-height: 44px; color: #dbe9e1; line-height: 44px; }
+.about-links a { min-height: 44px; color: #dbe9e1; line-height: 44px; }
 .about-links span { color: rgb(237 241 239 / 0.46); }
-.about-provider-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .about-danger { border-color: rgb(215 116 116 / 0.22); }
 .about-danger .button { margin-top: 14px; }
 
@@ -1968,7 +2008,6 @@ textarea {
 
   .shortcut-list li { grid-template-columns: 1fr; }
   .shortcut-list__actions { justify-content: flex-start; }
-  .about-provider-grid { grid-template-columns: 1fr; }
 }
 
 /* Keep the resting dock single-line and non-scrollable; extra entries remain editable in settings. */

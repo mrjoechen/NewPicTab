@@ -2,7 +2,7 @@
 
 PicTab 是一个极简 Chrome 新标签页扩展：背景图是主角，时间、日期、天气、搜索与快捷网址都可以独立关闭。图片源由用户添加，并可在本地图片、WebDAV、在线图片 URL、通用 JSON API 与 TMDB 之间切换。
 
-> 本项目以源码可见、仅限非商业使用的方式提供，采用 [PolyForm Noncommercial 1.0.0](LICENSE)。它不是 OSI 定义的“开源软件”。
+> PicTab 是采用 [MIT License](LICENSE) 发布的开源软件。你可以自由使用、复制、修改和分发，包括商业用途；分发时须保留版权与许可声明。
 
 ## 安装与开发
 
@@ -101,11 +101,7 @@ https://cdn.example.com/photos/ocean-02.jpg
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
 
-TMDB 内容、商标与 API 使用还受 TMDB 自己的条款约束。PicTab 的非商业许可不会代替或扩大 TMDB 授予你的权限；发布或分发前请核对 [TMDB 标识与归因规范](https://www.themoviedb.org/about/logos-attribution)。
-
-### 为什么没有启用 Unsplash / Pexels API
-
-设置中保留两者的官方说明入口，但不接受 API key，也不提供适配器。原因是其公开 API 指南对把 API 内容用于壁纸/背景类产品有限制；PicTab 不用技术实现绕过供应商政策。请阅读 [Unsplash API Guidelines](https://help.unsplash.com/en/articles/2511245-unsplash-api-guidelines) 与 [Pexels API Documentation](https://www.pexels.com/api/documentation/)。
+TMDB 内容、商标与 API 使用还受 TMDB 自己的条款约束。PicTab 代码采用 MIT License，并不代表 TMDB 内容也适用该许可，也不会代替或扩大 TMDB 授予你的权限；发布或分发前请核对 [TMDB 标识与归因规范](https://www.themoviedb.org/about/logos-attribution)。
 
 ## 天气与定位
 
@@ -170,4 +166,4 @@ PicTab 没有自有服务器，不包含广告、统计、遥测或跟踪。数�
 
 ## 许可
 
-[LICENSE](LICENSE) 是从 PolyForm 官方的 [Noncommercial 1.0.0 plain text](https://polyformproject.org/licenses/noncommercial/1.0.0.txt) 采用的完整条款，并附项目的 `Required Notice`。允许的用途以许可证原文为准；商业使用需要另行取得许可。
+PicTab 采用 [MIT License](LICENSE)。该协议简洁宽松，允许个人和组织使用、复制、修改、合并、发布、分发、再许可和销售软件副本，包括商业用途；条件是保留原始版权与许可声明。软件按“原样”提供，不附带任何明示或默示担保。

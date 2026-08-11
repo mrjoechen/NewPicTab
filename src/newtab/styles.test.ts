@@ -48,6 +48,27 @@ describe('search and shortcut layout guardrails', () => {
 });
 
 describe('settings drawer layout guardrails', () => {
+  it('keeps the WebDAV folder picker fixed, centered, and visually modal', () => {
+    const css = readFileSync('src/newtab/styles.css', 'utf8');
+    expect(css).toMatch(/\.webdav-picker-backdrop\s*\{[^}]*position:\s*fixed;[^}]*inset:\s*0;[^}]*place-items:\s*center;[^}]*background:\s*rgb\(3 6 8 \/ 0\.66\);/s);
+  });
+
+  it('separates full-editor previews from the test action and spans the load-more control', () => {
+    const css = readFileSync('src/newtab/styles.css', 'utf8');
+    expect(css).toMatch(/\.source-editor > \.source-preview\s*\{[^}]*margin-top:\s*16px;/s);
+    expect(css).toMatch(/\.source-preview\s*\{[^}]*max-height:\s*320px;[^}]*overflow-y:\s*auto;[^}]*background:\s*#171d20;[^}]*scrollbar-gutter:\s*stable;/s);
+    expect(css).toMatch(/\.source-preview__grid\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/s);
+    expect(css).toMatch(/\.source-preview__item img\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0;/s);
+    expect(css).toMatch(/\.source-preview__more\s*\{[^}]*display:\s*flex;[^}]*margin:\s*8px auto 0;/s);
+  });
+
+  it('keeps rounded panel buttons compact with centered content', () => {
+    const css = readFileSync('src/newtab/styles.css', 'utf8');
+    expect(css).toMatch(/\.button\s*\{[^}]*display:\s*inline-flex;[^}]*min-height:\s*42px;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;[^}]*line-height:\s*1\.2;[^}]*text-align:\s*center;/s);
+    expect(css).toMatch(/\.drawer-close,\s*\.text-button\s*\{[^}]*min-height:\s*40px;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;[^}]*line-height:\s*1\.2;/s);
+    expect(css).toMatch(/\.shortcut-list__actions button,\s*\.shortcut-icon-preview button\s*\{[^}]*display:\s*inline-flex;[^}]*min-height:\s*40px;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;/s);
+  });
+
   it('keeps settings tabs compact and widens the drawer for dense panels', () => {
     const css = readFileSync('src/newtab/styles.css', 'utf8');
     expect(css).toMatch(/\.settings-drawer\s*\{[^}]*grid-template-rows:\s*auto auto minmax\(0,\s*1fr\);[^}]*width:\s*min\(640px,\s*100vw\);/s);

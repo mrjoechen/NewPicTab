@@ -1,10 +1,15 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+
+import { SEARCH_ENGINES } from '../domain/search';
 
 const manifestPath = resolve(process.cwd(), 'public/manifest.json');
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
   manifest_version: number;
+  name: string;
+  description: string;
+  default_locale?: string;
   permissions: string[];
   host_permissions?: string[];
   optional_host_permissions: string[];
@@ -14,6 +19,17 @@ const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
 };
 
 describe('extension manifest', () => {
+  it('localizes extension metadata through Chrome locale resources', () => {
+    expect(manifest.name).toBe('__MSG_extensionName__');
+    expect(manifest.description).toBe('__MSG_extensionDescription__');
+    expect(manifest.default_locale).toBe('en');
+    for (const locale of ['en', 'zh_CN']) {
+      const messages = JSON.parse(readFileSync(resolve(process.cwd(), `public/_locales/${locale}/messages.json`), 'utf8')) as Record<string, { message?: string }>;
+      expect(messages.extensionName?.message).toBe('PicTab');
+      expect(messages.extensionDescription?.message).toBeTruthy();
+    }
+  });
+
   it('declares required permissions without making geolocation optional', () => {
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.minimum_chrome_version).toBe('111');
@@ -31,13 +47,16 @@ describe('extension manifest', () => {
     expect(manifest.optional_permissions ?? []).not.toContain('geolocation');
   });
 
-  it('allows only explicit search favicon endpoints for remote images', () => {
-    expect(manifest.content_security_policy?.extension_pages).toContain("img-src 'self' blob: data:");
-    expect(manifest.content_security_policy?.extension_pages).toContain('https://www.google.com/favicon.ico');
-    expect(manifest.content_security_policy?.extension_pages).toContain('https://www.bing.com/favicon.ico');
-    expect(manifest.content_security_policy?.extension_pages).toContain('https://duckduckgo.com/favicon.ico');
-    expect(manifest.content_security_policy?.extension_pages).toContain('https://www.baidu.com/favicon.ico');
-    expect(manifest.content_security_policy?.extension_pages).not.toContain('https://www.google.com/s2/favicons');
-    expect(manifest.content_security_policy?.extension_pages).not.toContain('https://*');
+  it('bundles every built-in search engine icon', () => {
+    for (const engine of Object.values(SEARCH_ENGINES)) {
+      expect(engine.iconUrl).toMatch(/^\/assets\/search-engines\/[a-z]+\.ico$/);
+      expect(existsSync(resolve(process.cwd(), 'public', engine.iconUrl.slice(1)))).toBe(true);
+    }
+  });
+
+  it('loads extension images only from bundled, blob, or data sources', () => {
+    const policy = manifest.content_security_policy?.extension_pages;
+    expect(policy).toContain("img-src 'self' blob: data:");
+    expect(policy).not.toMatch(/img-src[^;]*https:/);
   });
 });

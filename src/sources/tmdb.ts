@@ -7,8 +7,13 @@ import { boundedRemoteText } from './text';
 export type TmdbFetch = SourceFetch;
 export interface TmdbSourceAdapterOptions { timeoutMs?: number; maxBytes?: number; }
 export interface TmdbGenre { readonly id: number; readonly name: string; }
+export interface TmdbMetadata {
+  readonly genres: readonly TmdbGenre[];
+  readonly languages: readonly string[];
+  readonly regions: readonly string[];
+}
 interface ConnectionState { readonly fingerprint: string; readonly imageBase: string; }
-interface GenreState { readonly fingerprint: string; readonly genres: readonly TmdbGenre[]; }
+interface MetadataState extends TmdbMetadata { readonly fingerprint: string; }
 
 const API_ROOT = 'https://api.themoviedb.org';
 const LIST_LIMIT = 100;
@@ -20,7 +25,7 @@ export class TmdbSourceAdapter implements SourceAdapter<TmdbSourceConfig> {
   private readonly controllers = new Map<string, Set<AbortController>>();
   private readonly generations = new Map<string, number>();
   private readonly connections = new Map<string, ConnectionState>();
-  private readonly genres = new Map<string, GenreState>();
+  private readonly metadata = new Map<string, MetadataState>();
   private disposed = false;
 
   constructor(fetcher: TmdbFetch = defaultFetch, options: TmdbSourceAdapterOptions = {}) {
@@ -78,26 +83,33 @@ export class TmdbSourceAdapter implements SourceAdapter<TmdbSourceConfig> {
     if ('error' in connected) throw connected.error;
     const request = this.start(config.id);
     try {
-      const result = await this.request(config, `/3/genre/${config.media}/list`, request.controller);
-      if ('error' in result) throw result.error;
+      const [genreResult, languageResult, regionResult] = await Promise.all([
+        this.request(config, `/3/genre/${config.media}/list`, request.controller),
+        this.request(config, '/3/configuration/primary_translations', request.controller),
+        this.request(config, '/3/configuration/countries', request.controller)
+      ]);
+      if ('error' in genreResult) throw genreResult.error;
+      if ('error' in languageResult) throw languageResult.error;
+      if ('error' in regionResult) throw regionResult.error;
       if (!this.isCurrent(config.id, request.generation) || request.controller.signal.aborted) throw cancelledError();
-      if (!isRecord(result.value) || !Array.isArray(result.value.genres)) throw { code: 'parse', message: 'TMDB returned an invalid genre list.' } satisfies SourceError;
-      const values = new Map<number, TmdbGenre>();
-      for (const genre of result.value.genres) {
-        if (!isRecord(genre)) continue;
-        const id = genre.id;
-        const name = genre.name;
-        if (!Number.isSafeInteger(id) || typeof id !== 'number' || id < 0 || typeof name !== 'string' || !name.trim()) continue;
-        values.set(id, { id, name: boundedRemoteText(name)! });
-      }
-      this.genres.set(config.id, { fingerprint: configFingerprint(config), genres: Object.freeze([...values.values()].sort((left, right) => left.id - right.id || left.name.localeCompare(right.name))) });
+      const genres = parseGenres(genreResult.value);
+      const languages = parseLanguageCodes(languageResult.value);
+      const regions = parseRegionCodes(regionResult.value);
+      if (!genres || !languages || !regions) throw { code: 'parse', message: 'TMDB returned invalid configuration options.' } satisfies SourceError;
+      this.metadata.set(config.id, { fingerprint: configFingerprint(config), genres, languages, regions });
     } finally { this.finish(config.id, request.controller); }
   }
 
-  getGenres(config: TmdbSourceConfig): readonly TmdbGenre[] { const state = this.genres.get(config.id); return state?.fingerprint === configFingerprint(config) ? state.genres : []; }
+  getMetadata(config: TmdbSourceConfig): TmdbMetadata {
+    const state = this.metadata.get(config.id);
+    return state?.fingerprint === configFingerprint(config)
+      ? { genres: state.genres, languages: state.languages, regions: state.regions }
+      : { genres: [], languages: [], regions: [] };
+  }
+  getGenres(config: TmdbSourceConfig): readonly TmdbGenre[] { return this.getMetadata(config).genres; }
   async getAttribution(entry: ImageEntry): Promise<string | undefined> { return entry.attribution; }
   async deleteSource(sourceId: string): Promise<void> { this.invalidate(sourceId); }
-  dispose(): void { this.disposed = true; for (const sourceId of new Set([...this.controllers.keys(), ...this.connections.keys(), ...this.genres.keys()])) this.invalidate(sourceId); this.connections.clear(); this.genres.clear(); }
+  dispose(): void { this.disposed = true; for (const sourceId of new Set([...this.controllers.keys(), ...this.connections.keys(), ...this.metadata.keys()])) this.invalidate(sourceId); this.connections.clear(); this.metadata.clear(); }
 
   private async request(config: TmdbSourceConfig, path: string, controller: AbortController): Promise<{ value: unknown } | { error: SourceError }> {
     let fetched: { response: Response; value: unknown };
@@ -120,7 +132,7 @@ export class TmdbSourceAdapter implements SourceAdapter<TmdbSourceConfig> {
   private start(sourceId: string): { generation: number; controller: AbortController } { const controller = new AbortController(); const group = this.controllers.get(sourceId) ?? new Set<AbortController>(); group.add(controller); this.controllers.set(sourceId, group); return { generation: this.generations.get(sourceId) ?? 0, controller }; }
   private finish(sourceId: string, controller: AbortController): void { const group = this.controllers.get(sourceId); group?.delete(controller); if (group?.size === 0) this.controllers.delete(sourceId); }
   private abortSource(sourceId: string): void { for (const controller of this.controllers.get(sourceId) ?? []) controller.abort(); }
-  private invalidate(sourceId: string): void { this.abortSource(sourceId); this.advance(sourceId); this.connections.delete(sourceId); this.genres.delete(sourceId); }
+  private invalidate(sourceId: string): void { this.abortSource(sourceId); this.advance(sourceId); this.connections.delete(sourceId); this.metadata.delete(sourceId); }
   private connectionFor(config: TmdbSourceConfig): ConnectionState | undefined { const state = this.connections.get(config.id); return state?.fingerprint === configFingerprint(config) ? state : undefined; }
   private advance(sourceId: string): number { const next = (this.generations.get(sourceId) ?? 0) + 1; this.generations.set(sourceId, next); return next; }
   private isCurrent(sourceId: string, generation: number): boolean { return !this.disposed && (this.generations.get(sourceId) ?? 0) === generation; }
@@ -194,6 +206,28 @@ function mapImage(value: unknown, config: TmdbSourceConfig, base: string): Image
 }
 function isSafeBackdrop(value: unknown): value is string {
   return typeof value === 'string' && /^\/[A-Za-z0-9_-]+\.[A-Za-z0-9]+$/.test(value);
+}
+function parseGenres(value: unknown): readonly TmdbGenre[] | undefined {
+  if (!isRecord(value) || !Array.isArray(value.genres)) return undefined;
+  const genres = new Map<number, TmdbGenre>();
+  for (const genre of value.genres) {
+    if (!isRecord(genre) || !Number.isSafeInteger(genre.id) || typeof genre.id !== 'number' || genre.id < 0 || typeof genre.name !== 'string') continue;
+    const name = boundedRemoteText(genre.name);
+    if (name) genres.set(genre.id, { id: genre.id, name });
+  }
+  return Object.freeze([...genres.values()].sort((left, right) => left.id - right.id || left.name.localeCompare(right.name)));
+}
+function parseLanguageCodes(value: unknown): readonly string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const languages = new Set<string>();
+  for (const language of value) if (typeof language === 'string' && /^[a-z]{2,3}-[A-Z]{2}$/.test(language)) languages.add(language);
+  return Object.freeze([...languages].sort((left, right) => left.localeCompare(right)));
+}
+function parseRegionCodes(value: unknown): readonly string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const regions = new Set<string>();
+  for (const region of value) if (isRecord(region) && typeof region.iso_3166_1 === 'string' && /^[A-Z]{2}$/.test(region.iso_3166_1)) regions.add(region.iso_3166_1);
+  return Object.freeze([...regions].sort((left, right) => left.localeCompare(right)));
 }
 function isRecord(value: unknown): value is Record<string, unknown> { return !!value && typeof value === 'object' && !Array.isArray(value); }
 function text(value: unknown): string | undefined { return typeof value === 'string' ? boundedRemoteText(value) : undefined; }

@@ -9,10 +9,18 @@ const tv: TmdbSourceConfig = { ...movie, id: 'tmdb-tv', media: 'tv', feed: 'popu
 const response = (value: unknown, status = 200, headers?: HeadersInit) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json', ...headers } });
 const connection = () => response({ images: { secure_base_url: 'https://image.tmdb.org/t/p/', backdrop_sizes: ['w300', 'w1280', 'original'] } });
 const images = (...items: unknown[]) => response({ results: items });
+const languages = (...values: unknown[]) => response(values.length ? values : ['en-US', 'zh-CN']);
+const regions = (...values: unknown[]) => response(values.length ? values : [{ iso_3166_1: 'CN' }, { iso_3166_1: 'US' }]);
+function metadataResponse(url: string | URL, genres: unknown[] = []): Response {
+  const path = new URL(String(url)).pathname;
+  if (path === '/3/configuration/primary_translations') return languages();
+  if (path === '/3/configuration/countries') return regions();
+  return response({ genres });
+}
 
 describe('TmdbSourceAdapter', () => {
   it('lazily reconnects after an MV3 worker restart for lists and metadata refreshes', async () => {
-    const fetcher = vi.fn(async (url: string | URL) => String(url).endsWith('/configuration') ? connection() : String(url).includes('/genre/') ? response({ genres: [] }) : images({ id: 1, backdrop_path: '/a.jpg' }));
+    const fetcher = vi.fn(async (url: string | URL) => String(url).endsWith('/configuration') ? connection() : String(url).includes('/movie/popular') ? images({ id: 1, backdrop_path: '/a.jpg' }) : metadataResponse(url));
     const restarted = new TmdbSourceAdapter(fetcher);
     await expect(restarted.listImages(movie)).resolves.toMatchObject({ ok: true });
     await expect(restarted.refreshMetadata(movie)).resolves.toBeUndefined();
@@ -69,13 +77,24 @@ describe('TmdbSourceAdapter', () => {
     expect(Object.fromEntries(new URL(seen[1]!).searchParams)).toEqual({ page: '2', language: 'fr-FR', region: 'FR' });
   });
 
-  it('requires a successful connection before metadata and lists genres separately per media', async () => {
-    const fetcher = vi.fn(async (url: string | URL) => String(url).endsWith('/configuration') ? connection() : response({ genres: [{ id: 2, name: 'Drama' }, { id: 2, name: 'Drama' }, { id: 'bad', name: 'No' }, { id: 1, name: ' Action ' }] }));
+  it('loads validated TMDB genres, language tags, and region codes separately per media', async () => {
+    const genreValues = [{ id: 2, name: 'Drama' }, { id: 2, name: 'Drama' }, { id: 'bad', name: 'No' }, { id: 1, name: ' Action ' }];
+    const fetcher = vi.fn(async (url: string | URL) => {
+      if (String(url).endsWith('/configuration')) return connection();
+      const path = new URL(String(url)).pathname;
+      if (path === '/3/configuration/primary_translations') return languages('zh-CN', 'en-US', 'zh-CN', 'invalid');
+      if (path === '/3/configuration/countries') return regions({ iso_3166_1: 'US' }, { iso_3166_1: 'CN' }, { iso_3166_1: 'CN' }, { iso_3166_1: 'bad' });
+      return response({ genres: genreValues });
+    });
     const adapter = new TmdbSourceAdapter(fetcher);
     await expect(adapter.refreshMetadata(movie)).resolves.toBeUndefined();
     await adapter.testConnection(movie);
     await adapter.refreshMetadata(movie);
-    expect(adapter.getGenres(movie)).toEqual([{ id: 1, name: 'Action' }, { id: 2, name: 'Drama' }]);
+    expect(adapter.getMetadata(movie)).toEqual({
+      genres: [{ id: 1, name: 'Action' }, { id: 2, name: 'Drama' }],
+      languages: ['en-US', 'zh-CN'],
+      regions: ['CN', 'US']
+    });
     await adapter.testConnection(tv);
     await adapter.refreshMetadata(tv);
     expect(fetcher.mock.calls.some(([url]) => String(url).endsWith('/3/genre/tv/list'))).toBe(true);
@@ -172,6 +191,7 @@ describe('TmdbSourceAdapter', () => {
     const adapter = new TmdbSourceAdapter((url, init) => {
       if (String(url).endsWith('/configuration')) return Promise.resolve(new Headers(init?.headers).get('Authorization')?.includes('new-token') ? new Response('', { status: 401 }) : connection());
       if (String(url).includes('/genre/')) return Promise.resolve(response({ genres: [{ id: 3, name: 'Comedy' }] }));
+      if (String(url).includes('/configuration/')) return Promise.resolve(metadataResponse(url));
       return new Promise<Response>((resolve) => { resolveList = resolve; listSignal = init?.signal ?? undefined; });
     });
     await adapter.testConnection(movie);
@@ -192,13 +212,13 @@ describe('TmdbSourceAdapter', () => {
     const authorizations: Array<string | null> = [];
     const adapter = new TmdbSourceAdapter(async (url, init) => {
       authorizations.push(new Headers(init?.headers).get('Authorization'));
-      return String(url).endsWith('/configuration') ? connection() : response({ genres: [{ id: 8, name: 'Mystery' }] });
+      return String(url).endsWith('/configuration') ? connection() : metadataResponse(url, [{ id: 8, name: 'Mystery' }]);
     });
     await adapter.testConnection(configuredMovie);
     await adapter.refreshMetadata(configuredMovie);
     const currentGenres = adapter.getGenres(movie);
     expect(currentGenres).toEqual([{ id: 8, name: 'Mystery' }]);
-    expect(authorizations).toEqual([`Bearer ${token}`, `Bearer ${token}`]);
+    expect(authorizations).toEqual([`Bearer ${token}`, `Bearer ${token}`, `Bearer ${token}`, `Bearer ${token}`]);
     const sameIdDifferentMedia: TmdbSourceConfig = { ...movie, token: 'token-b', media: 'tv', feed: 'popular' };
     const changedGenres = adapter.getGenres(sameIdDifferentMedia);
     expect(changedGenres).toEqual([]);
@@ -216,8 +236,12 @@ describe('TmdbSourceAdapter', () => {
     await Promise.resolve();
     const listRequest = pending.find((item) => item.url.includes('/3/movie/popular'))!;
     const genreRequest = pending.find((item) => item.url.includes('/3/genre/movie/list'))!;
+    const languageRequest = pending.find((item) => item.url.includes('/3/configuration/primary_translations'))!;
+    const regionRequest = pending.find((item) => item.url.includes('/3/configuration/countries'))!;
     listRequest.resolve(images({ id: 1, backdrop_path: '/a.jpg' }));
     genreRequest.resolve(response({ genres: [{ id: 4, name: 'Crime' }] }));
+    languageRequest.resolve(languages());
+    regionRequest.resolve(regions());
     await expect(listing).resolves.toMatchObject({ ok: true, images: [{ id: 'tmdb:movie:1' }] });
     await expect(metadata).resolves.toBeUndefined();
     expect(adapter.getGenres(movie)).toEqual([{ id: 4, name: 'Crime' }]);

@@ -67,8 +67,8 @@ test('loads the unpacked new-tab override with an offline-safe first paint', asy
   await page.getByRole('button', { name: '添加图片源' }).click();
   await expect(page.getByRole('dialog', { name: '设置' })).toBeVisible();
   await page.getByRole('button', { name: '添加图片源' }).click();
-  await expect(page.locator('.provider-disabled').filter({ hasText: 'Unsplash' })).toContainText('wallpapers');
-  await expect(page.locator('.provider-disabled').filter({ hasText: 'Pexels' })).toContainText('wallpapers');
+  await expect(page.getByRole('button', { name: '本地图片' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'TMDB' })).toBeVisible();
 });
 
 test('activates a private local source and persists display preferences', async () => {
@@ -84,7 +84,7 @@ test('activates a private local source and persists display preferences', async 
   await expect(page.getByText('正在使用')).toBeVisible();
   await expect(page.getByTestId('background-current')).toHaveAttribute('style', /blob:chrome-extension/);
 
-  await page.getByRole('button', { name: '背景与动效' }).click();
+  await page.getByRole('button', { name: '动效' }).click();
   await page.getByLabel('图片顺序').selectOption('sequential');
   for (const transition of ['fade', 'slide', 'ken-burns', 'none'] as const) {
     await page.getByLabel('切换样式').selectOption(transition);
@@ -93,7 +93,7 @@ test('activates a private local source and persists display preferences', async 
   await page.getByLabel('切换样式').selectOption('slide');
   await expect(page.getByTestId('background-stage')).toHaveAttribute('data-transition', 'slide');
 
-  await page.getByRole('button', { name: '时间日期' }).click();
+  await page.getByRole('button', { name: '时间和日期' }).click();
   await page.getByLabel('显示时间').click();
   await expect(page.getByLabel('显示时间')).not.toBeChecked();
   await page.getByLabel('显示日期').click();

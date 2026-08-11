@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "PicTab",
-  "description": "以本地、WebDAV、在线 URL、JSON API 或 TMDB 图片打造极简新标签页。",
+  "name": "__MSG_extensionName__",
+  "description": "__MSG_extensionDescription__",
+  "default_locale": "en",
   "version": "0.1.0",
   "minimum_chrome_version": "111",
   "homepage_url": "https://github.com/mrjoechen/PicTab",
@@ -15,7 +16,7 @@
   ],
   "optional_host_permissions": ["https://*/*"],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'none'; img-src 'self' blob: data: https://www.google.com/favicon.ico https://www.bing.com/favicon.ico https://duckduckgo.com/favicon.ico https://www.baidu.com/favicon.ico"
+    "extension_pages": "script-src 'self'; object-src 'none'; img-src 'self' blob: data:"
   },
   "chrome_url_overrides": {
     "newtab": "newtab.html"

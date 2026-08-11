@@ -13,12 +13,13 @@ export type BackgroundRequest =
   | { source: 'clear-cache' }
   | { source: 'clear-source-cache'; sourceId: string }
   | { weather: 'city-search'; query: string; locale?: string }
-  | { weather: 'current'; location: string; latitude: number; longitude: number };
+  | { weather: 'reverse-geocode'; latitude: number; longitude: number; locale?: string }
+  | { weather: 'current'; location: string; latitude: number; longitude: number; locale?: string };
 
 export type BackgroundFailureCode = SourceError['code'] | 'unsupported';
 export type BackgroundFailure = { ok: false; code: BackgroundFailureCode; message: string; failures?: string[] };
-export type WeatherBackgroundResponse = { ok: true; cities: CityResult[] } | { ok: true; weather: WeatherSnapshot } | BackgroundFailure;
-export type BackgroundResponse = ConnectionTestResult | ListImagesResult | { ok: true } | { ok: true; genres: TmdbGenre[] } | WeatherBackgroundResponse | BackgroundFailure;
+export type WeatherBackgroundResponse = { ok: true; cities: CityResult[] } | { ok: true; location: string } | { ok: true; weather: WeatherSnapshot } | BackgroundFailure;
+export type BackgroundResponse = ConnectionTestResult | ListImagesResult | { ok: true } | { ok: true; genres: TmdbGenre[]; languages: string[]; regions: string[] } | WeatherBackgroundResponse | BackgroundFailure;
 
 export function isBackgroundRequest(value: unknown): value is BackgroundRequest {
   if (!isRecord(value)) return false;
@@ -29,16 +30,21 @@ export function isBackgroundRequest(value: unknown): value is BackgroundRequest 
       || value.source === 'clear-cache'
       || value.source === 'clear-source-cache' && typeof value.sourceId === 'string' && value.sourceId.trim().length > 0;
   }
+  const validLocale = value.locale === undefined || typeof value.locale === 'string' && value.locale.length <= 35;
   return value.weather === 'city-search'
       && typeof value.query === 'string'
       && value.query.trim().length >= 2
       && value.query.trim().length <= 100
-      && (value.locale === undefined || typeof value.locale === 'string' && value.locale.length <= 35)
+      && validLocale
+    || value.weather === 'reverse-geocode'
+      && validCoordinates(value.latitude, value.longitude)
+      && validLocale
     || value.weather === 'current'
       && typeof value.location === 'string'
       && value.location.trim().length > 0
       && value.location.length <= 160
-      && validCoordinates(value.latitude, value.longitude);
+      && validCoordinates(value.latitude, value.longitude)
+      && validLocale;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> { return !!value && typeof value === 'object' && !Array.isArray(value); }

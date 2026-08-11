@@ -9,14 +9,13 @@ import type { LocalImageRecord } from '../../storage/imageDb';
 import type { OriginPermissionOperationResult } from '../../lib/permissions';
 import { SourceEditor, sourceTypeName } from './SourceEditor';
 import { permissionTargetsForSource } from './SourceEditor';
-import { PROVIDERS } from '../../sources/providers';
 import type { RemoteCacheLease } from '../sourceClient';
 import { isolateModalBackground } from '../../lib/modalIsolation';
 import { SourceStatus, type SourceStatusState } from '../components/SourceStatus';
 import { Icon } from '../components/Icon';
 
 export type SettingsUpdater = (updater: (current: PicTabSettings) => PicTabSettings) => Promise<PicTabSettings> | PicTabSettings | void;
-export type TmdbMetadataResult = { ok: true; genres: { id: number; name: string }[] } | { ok: false; error: { message: string } };
+export type TmdbMetadataResult = { ok: true; genres: { id: number; name: string }[]; languages: string[]; regions: string[] } | { ok: false; error: { message: string } };
 
 export interface SourceOperations {
   test: (source: SourceConfig) => Promise<ConnectionTestResult>;
@@ -173,8 +172,6 @@ export function SourcesPanel({ settings, operations, counts, states = {}, onUpda
       {choosing ? <div className="source-picker" aria-label="选择图片源类型">
         <div className="source-picker__header"><h3>选择来源</h3><button className="text-button text-button--with-icon" type="button" aria-label="取消" title="取消" onClick={() => setChoosing(false)}><Icon name="close" /><span>取消</span></button></div>
         {SOURCE_TYPES.map((item) => <button aria-label={item.name} type="button" key={item.type} onClick={() => { setEditor({ type: item.type }); setChoosing(false); }}><strong>{item.name}</strong><span>{item.detail}</span></button>)}
-        <div className="provider-disabled"><strong>Unsplash</strong><span>{PROVIDERS.unsplash.restrictionReason}</span><a href={PROVIDERS.unsplash.guideUrl} target="_blank" rel="noopener noreferrer">Unsplash 官方说明</a></div>
-        <div className="provider-disabled"><strong>Pexels</strong><span>{PROVIDERS.pexels.restrictionReason}</span><a href={PROVIDERS.pexels.guideUrl} target="_blank" rel="noopener noreferrer">Pexels 官方说明</a></div>
       </div> : <button className="button button--with-icon" type="button" aria-label="添加图片源" title="添加图片源" onClick={() => setChoosing(true)}><Icon name="plus" /><span>添加</span></button>}
     </section>
     </div>{confirmation}</>

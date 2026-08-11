@@ -46,6 +46,15 @@ describe('background dispatcher', () => {
     await expect(dispatch({ weather: 'current', location: 'X', latitude: 0, longitude: 181 })).resolves.toMatchObject({ code: 'validation' });
     expect(weatherHandler).toHaveBeenCalledOnce();
   });
+  it('routes localized reverse geocoding through the background worker', async () => {
+    const reverseGeocode = vi.fn(async () => 'Shanghai, China');
+    const dispatch = createDispatcher({ reverseGeocode, senderAllowed: () => true });
+
+    await expect(dispatch({ weather: 'reverse-geocode', latitude: 31.2, longitude: 121.4, locale: 'en-US' }))
+      .resolves.toEqual({ ok: true, location: 'Shanghai, China' });
+    expect(reverseGeocode).toHaveBeenCalledWith(31.2, 121.4, 'en-US');
+  });
+
   it('routes test, list and refresh through one reused adapter', async () => {
     const made = vi.fn(adapter); const dispatch = createDispatcher({ factories: { direct: made } });
     await expect(dispatch({ source: 'test', config: source })).resolves.toMatchObject({ ok: true });
@@ -160,18 +169,18 @@ describe('background dispatcher', () => {
     expect(JSON.stringify(result)).not.toContain('private cache failure');
   });
 
-  it('returns dynamic TMDB genres only through the typed metadata request', async () => {
+  it('returns dynamic TMDB choices only through the typed metadata request', async () => {
     const tmdb: TmdbSourceConfig = { id: 'tmdb', name: 'Movies', type: 'tmdb', enabled: true, createdAt: 1, updatedAt: 1, token: 'private', media: 'movie', feed: 'popular', discoverFilters: {} };
     const item = {
       ...adapter(),
       refreshMetadata: vi.fn(async () => undefined),
-      getGenres: vi.fn(() => [{ id: 28, name: 'Action' }])
+      getMetadata: vi.fn(() => ({ genres: [{ id: 28, name: 'Action' }], languages: ['en-US', 'zh-CN'], regions: ['CN', 'US'] }))
     };
     const dispatch = createDispatcher({ factories: { tmdb: () => item }, senderAllowed: () => true });
 
-    await expect(dispatch({ source: 'tmdb-metadata', config: tmdb })).resolves.toEqual({ ok: true, genres: [{ id: 28, name: 'Action' }] });
+    await expect(dispatch({ source: 'tmdb-metadata', config: tmdb })).resolves.toEqual({ ok: true, genres: [{ id: 28, name: 'Action' }], languages: ['en-US', 'zh-CN'], regions: ['CN', 'US'] });
     expect(item.refreshMetadata).toHaveBeenCalledWith(tmdb);
-    expect(item.getGenres).toHaveBeenCalledWith(tmdb);
+    expect(item.getMetadata).toHaveBeenCalledWith(tmdb);
   });
 
   it('replaces a cached adapter when the source type changes and disposes on delete', async () => {

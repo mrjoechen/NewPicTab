@@ -1,0 +1,8 @@
+{
+  "extensionName": {
+    "message": "PicTab"
+  },
+  "extensionDescription": {
+    "message": "A minimal new tab page powered by local, WebDAV, direct URL, JSON API, or TMDB images."
+  }
+}

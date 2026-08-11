@@ -66,9 +66,9 @@ describe('SearchBox', () => {
     expect(navigate).toHaveBeenCalledWith('https://www.baidu.com/s?wd=photo');
   });
 
-  it('uses the selected search engine favicon instead of a text initial', () => {
+  it('uses the bundled selected search engine icon instead of a remote favicon', () => {
     render(<SearchBox settings={search({ enabled: true, engine: 'duckduckgo' })} />);
-    expect(screen.getByRole('search').querySelector('.search-box__engine img')).toHaveAttribute('src', 'https://duckduckgo.com/favicon.ico');
+    expect(screen.getByRole('search').querySelector('.search-box__engine img')).toHaveAttribute('src', '/assets/search-engines/duckduckgo.ico');
   });
 
   it('does not submit while an IME composition is active and has an accessible submit button', () => {

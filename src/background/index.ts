@@ -3,18 +3,18 @@ import type { ImageEntry, SourceAdapter, SourceError } from '../sources/adapter'
 import { DirectSourceAdapter } from '../sources/direct';
 import { JsonApiSourceAdapter } from '../sources/jsonApi';
 import { WebDavSourceAdapter } from '../sources/webdav';
-import { TmdbSourceAdapter } from '../sources/tmdb';
+import { TmdbSourceAdapter, type TmdbMetadata } from '../sources/tmdb';
 import { RemoteCache } from '../storage/remoteCache';
 import { isBackgroundRequest, type BackgroundFailure, type BackgroundRequest, type BackgroundResponse } from './messages';
 import { sourceConfigFingerprint } from '../domain/sourceFingerprint';
 import { IndexedDbCatalogRepository, isPersistableCatalog, type CatalogRecord, type CatalogRepository } from '../storage/catalogRepository';
-import { OpenMeteoService, WeatherServiceError } from '../weather/openMeteo';
+import { OpenMeteoService, WeatherServiceError, reverseGeocodeLocation } from '../weather/openMeteo';
 import { getAllLocal, removeLocal } from '../lib/chrome';
 import { AUXILIARY_STORAGE_MAINTENANCE_LOCK, withPicTabDataMutationLock } from '../storage/maintenance';
 import { boundedRemoteText } from '../sources/text';
 
 type RemoteSourceType = Exclude<SourceType, 'local'>;
-type AnyAdapter = SourceAdapter<any> & { getGenres?: (config: any) => readonly { id: number; name: string }[] };
+type AnyAdapter = SourceAdapter<any> & { getMetadata?: (config: any) => TmdbMetadata };
 export type AdapterFactory = () => AnyAdapter;
 export interface DispatcherOptions {
   factories?: Partial<Record<RemoteSourceType, AdapterFactory>>;
@@ -24,6 +24,7 @@ export interface DispatcherOptions {
   imageFetcher?: (url: string, init?: RequestInit) => Promise<Response>;
   catalogRepository?: CatalogRepository;
   weatherService?: Pick<OpenMeteoService, 'searchCities' | 'current' | 'clearCache'>;
+  reverseGeocode?: typeof reverseGeocodeLocation;
   clearAuxiliaryData?: () => Promise<void>;
 }
 
@@ -49,6 +50,7 @@ export function createDispatcher(options: DispatcherOptions = {}): (message: unk
   const catalogRepository = options.catalogRepository ?? (globalThis.indexedDB ? new IndexedDbCatalogRepository() : undefined);
   const imageFetcher = options.imageFetcher ?? ((url: string, init?: RequestInit) => fetch(url, init));
   const weatherService = options.weatherService ?? new OpenMeteoService();
+  const reverseGeocode = options.reverseGeocode ?? reverseGeocodeLocation;
   const clearAuxiliaryData = options.clearAuxiliaryData ?? clearAuxiliaryStorage;
   // Chrome supplies runtime.id in production; a missing id is accepted only in test shims where
   // runtime.id is also absent (or via the injected sender policy).
@@ -80,7 +82,7 @@ export function createDispatcher(options: DispatcherOptions = {}): (message: unk
       }
       return await withPicTabDataMutationLock(async () => {
       if (clearingAllData) return failure('unknown', 'PicTab data clearing is in progress.');
-      if ('weather' in message) return safeClone(await (options.weatherHandler ? options.weatherHandler(message) : handleWeatherRequest(weatherService, message)));
+      if ('weather' in message) return safeClone(await (options.weatherHandler ? options.weatherHandler(message) : handleWeatherRequest(weatherService, reverseGeocode, message)));
       if (message.source === 'clear-cache') {
         cacheEpoch += 1;
         metadataLists.clear();
@@ -125,9 +127,10 @@ export function createDispatcher(options: DispatcherOptions = {}): (message: unk
         if ('error' in acquired) return safeClone({ ok: false, ...acquired.error });
         const adapter = acquired.adapter;
         if (message.source === 'tmdb-metadata') {
-          if (config.type !== 'tmdb' || !adapter.getGenres) return failure('validation', 'TMDB metadata requires a TMDB source.');
+          if (config.type !== 'tmdb' || !adapter.getMetadata) return failure('validation', 'TMDB metadata requires a TMDB source.');
           await adapter.refreshMetadata(config);
-          return safeClone({ ok: true, genres: [...adapter.getGenres(config)] });
+          const metadata = adapter.getMetadata(config);
+          return safeClone({ ok: true, genres: [...metadata.genres], languages: [...metadata.languages], regions: [...metadata.regions] });
         }
         if (message.source === 'test') {
           const tested = await adapter.testConnection(config);
@@ -454,9 +457,10 @@ function collectSecrets(value: unknown, output: string[] = []): string[] {
   return output;
 }
 
-async function handleWeatherRequest(service: Pick<OpenMeteoService, 'searchCities' | 'current'>, request: Extract<BackgroundRequest, { weather: string }>): Promise<BackgroundResponse> {
+async function handleWeatherRequest(service: Pick<OpenMeteoService, 'searchCities' | 'current'>, reverseGeocode: typeof reverseGeocodeLocation, request: Extract<BackgroundRequest, { weather: string }>): Promise<BackgroundResponse> {
   try {
     if (request.weather === 'city-search') return { ok: true, cities: await service.searchCities(request.query, request.locale) };
+    if (request.weather === 'reverse-geocode') return { ok: true, location: await reverseGeocode(request.latitude, request.longitude, request.locale) };
     return { ok: true, weather: await service.current({ location: request.location, latitude: request.latitude, longitude: request.longitude }) };
   } catch (error) {
     if (error instanceof WeatherServiceError) return failure(error.code, error.message);

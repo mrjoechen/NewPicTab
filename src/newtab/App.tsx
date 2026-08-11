@@ -18,6 +18,7 @@ import { SettingsDrawer } from './settings/SettingsDrawer';
 import type { SourceLoadState } from './settings/SourcesPanel';
 import type { WeatherBackgroundResponse } from '../background/messages';
 import type { WeatherSnapshot } from '../weather/openMeteo';
+import { LanguageProvider } from './i18n';
 
 const BUNDLED_BACKGROUND: BackgroundImage = {
   id: 'pictab-fallback',
@@ -248,19 +249,21 @@ export default function App() {
 
   useEffect(() => {
     const value = settings.widgets.weather;
-    if (!value.enabled || value.latitude === null || value.longitude === null) { setWeather(null); return; }
+    const { latitude, longitude } = value;
+    if (!value.enabled || latitude === null || longitude === null) { setWeather(null); return; }
     setWeather(null);
     let active = true;
-    void sendWeatherCurrent({ location: value.city || '当前位置', latitude: value.latitude, longitude: value.longitude }).then((response) => {
+    const loadWeather = async () => {
+      const fallback = settings.interfaceLanguage === 'zh-CN' ? '当前位置' : 'Current location';
+      const resolved = await sendWeatherReverseGeocode({ latitude, longitude, locale: settings.interfaceLanguage });
+      const location = resolved.ok && 'location' in resolved ? resolved.location : value.city || fallback;
+      const response = await sendWeatherCurrent({ location, latitude, longitude, locale: settings.interfaceLanguage });
       if (active && response.ok && 'weather' in response) setWeather(response.weather);
-    });
-    const timer = setInterval(() => {
-      void sendWeatherCurrent({ location: value.city || '当前位置', latitude: value.latitude!, longitude: value.longitude! }).then((response) => {
-        if (active && response.ok && 'weather' in response) setWeather(response.weather);
-      });
-    }, 30 * 60_000);
+    };
+    void loadWeather();
+    const timer = setInterval(() => { void loadWeather(); }, 30 * 60_000);
     return () => { active = false; clearInterval(timer); };
-  }, [settings.widgets.weather.city, settings.widgets.weather.enabled, settings.widgets.weather.latitude, settings.widgets.weather.longitude]);
+  }, [settings.interfaceLanguage, settings.widgets.weather.city, settings.widgets.weather.enabled, settings.widgets.weather.latitude, settings.widgets.weather.longitude]);
 
   const rotationEntries = activeSource && entries[0]?.sourceId !== activeSource.id ? [] : entries;
   const previewWidgets = useMemo(() => clockScalePreview === null
@@ -307,7 +310,7 @@ export default function App() {
   }, [activeSourceRevision, background.current, entries, loadRemoteWindow]);
 
   return (
-    <>
+    <LanguageProvider language={settings.interfaceLanguage}>
     <main ref={setBackgroundElement} className="app">
       <img
         className="fallback-background"
@@ -321,7 +324,7 @@ export default function App() {
         transition={settings.appearance.transition}
         transitionMs={settings.appearance.transitionMs}
       />
-      <ClockWeather settings={previewWidgets} weather={weather} backgroundImage={background.current} />
+      <ClockWeather settings={previewWidgets} weather={weather} locale={settings.interfaceLanguage} backgroundImage={background.current} />
       <SearchBox settings={settings.widgets.search} language={settings.interfaceLanguage} />
       <ShortcutDock enabled={settings.widgets.shortcuts.enabled} shortcuts={settings.shortcuts} maxVisible={settings.widgets.shortcuts.maxVisible} scale={settings.widgets.shortcuts.scale} />
       {isBackgroundPreparing && (
@@ -345,14 +348,22 @@ export default function App() {
       setFirstRunDismissRequest(0);
       setFirstRunReset((value) => value + 1);
     }} />
-    </>
+    </LanguageProvider>
   );
 }
 
-function sendWeatherCurrent(location: { location: string; latitude: number; longitude: number }): Promise<WeatherBackgroundResponse> {
+function sendWeatherReverseGeocode(location: { latitude: number; longitude: number; locale: string }): Promise<WeatherBackgroundResponse> {
+  return sendWeatherMessage({ weather: 'reverse-geocode', ...location });
+}
+
+function sendWeatherCurrent(location: { location: string; latitude: number; longitude: number; locale: string }): Promise<WeatherBackgroundResponse> {
+  return sendWeatherMessage({ weather: 'current', ...location });
+}
+
+function sendWeatherMessage(message: unknown): Promise<WeatherBackgroundResponse> {
   return new Promise((resolve) => {
     try {
-      chrome.runtime.sendMessage({ weather: 'current', ...location }, (response: WeatherBackgroundResponse | undefined) => {
+      chrome.runtime.sendMessage(message, (response: WeatherBackgroundResponse | undefined) => {
         if (chrome.runtime.lastError || !response) resolve({ ok: false, code: 'network', message: '天气服务暂不可用。' });
         else resolve(response);
       });

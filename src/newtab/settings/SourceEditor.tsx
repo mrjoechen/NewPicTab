@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type UIEvent } from 'react';
+import { createPortal } from 'react-dom';
 
 import type { DirectEntry, SourceConfig, SourceType, TmdbDiscoverFilters, TmdbSourceConfig } from '../../domain/types';
 import type { ImageEntry, SafeWebDavDirectory } from '../../sources/adapter';
@@ -7,6 +8,7 @@ import type { SourceOperations, TmdbMetadataResult } from './SourcesPanel';
 import type { RemoteCacheLease } from '../sourceClient';
 import { Icon } from '../components/Icon';
 import { canonicalWebDavChildDirectory, canonicalWebDavDirectory } from '../../sources/webdavUrl';
+import { useInterfaceLanguage } from '../i18n';
 
 interface SourceEditorProps {
   source?: SourceConfig;
@@ -38,6 +40,7 @@ const PREVIEW_PAGE_SIZE = 6;
 type PreviewCursor = { nextOffset: number; hasMore: boolean };
 
 export function SourceEditor({ source, type, initialMode = 'edit', operations, onSave, onCancel, onDelete, onRefresh }: SourceEditorProps) {
+  const interfaceLanguage = useInterfaceLanguage();
   const [editorMode, setEditorMode] = useState<SourceEditorMode>(() => source ? initialMode : 'edit');
   const [id, setId] = useState(() => source?.id ?? createId());
   const [now] = useState(() => source?.createdAt ?? Date.now());
@@ -83,6 +86,8 @@ export function SourceEditor({ source, type, initialMode = 'edit', operations, o
   const [jsonDiscovery, setJsonDiscovery] = useState<JsonDiscovery | null>(null);
   const [webDavDiscovery, setWebDavDiscovery] = useState<WebDavDiscovery | null>(null);
   const [webDavPickerOpen, setWebDavPickerOpen] = useState(false);
+  const [webDavPickerBusy, setWebDavPickerBusy] = useState(false);
+  const [webDavPickerStatus, setWebDavPickerStatus] = useState<EditorStatus>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [localItems, setLocalItems] = useState<{ id: string; name: string; url?: string }[]>([]);
   const localUrls = useRef<Set<string>>(new Set());
@@ -91,6 +96,7 @@ export function SourceEditor({ source, type, initialMode = 'edit', operations, o
   const previewLeases = useRef<RemoteCacheLease[]>([]);
   const mounted = useRef(true);
   const requestGeneration = useRef(0);
+  const webDavBrowseGeneration = useRef(0);
   const tmdbConnectionGeneration = useRef(0);
   const pendingLocalCleanup = useRef<Extract<SourceConfig, { type: 'local' }> | null>(null);
   const managedPreviewLoaded = useRef(false);
@@ -143,7 +149,7 @@ export function SourceEditor({ source, type, initialMode = 'edit', operations, o
   }, [operations, source, type]);
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; requestGeneration.current += 1; tmdbConnectionGeneration.current += 1; releasePreview(); };
+    return () => { mounted.current = false; requestGeneration.current += 1; webDavBrowseGeneration.current += 1; tmdbConnectionGeneration.current += 1; releasePreview(); };
   }, [releasePreview]);
 
   const tmdbConnectionIdentity = `${tmdbToken.trim()}\u0000${tmdbMedia}`;
@@ -279,9 +285,17 @@ export function SourceEditor({ source, type, initialMode = 'edit', operations, o
     void loadManagedPreview(source, { quiet: true });
   }, [editorMode, loadManagedPreview, source]);
 
+  const closeWebDavPicker = () => {
+    webDavBrowseGeneration.current += 1;
+    setWebDavPickerOpen(false);
+    setWebDavPickerBusy(false);
+    setWebDavPickerStatus(null);
+  };
+
   const clearWebDavTest = () => {
     requestGeneration.current += 1;
-    releasePreview(); setPreview([]); setWebDavDiscovery(null); setWebDavPickerOpen(false); setTested(false); setBusy(false); setStatus(null);
+    webDavBrowseGeneration.current += 1;
+    releasePreview(); setPreview([]); setWebDavDiscovery(null); setWebDavPickerOpen(false); setWebDavPickerBusy(false); setWebDavPickerStatus(null); setTested(false); setBusy(false); setStatus(null);
   };
 
   const materializeRemotePreview = async (previewDraft: SourceConfig, generation: number, options: { allowEmpty?: boolean } = {}) => materializePreviewPage(previewDraft, generation, { offset: 0, allowEmpty: options.allowEmpty });
@@ -293,22 +307,24 @@ export function SourceEditor({ source, type, initialMode = 'edit', operations, o
 
   const browseWebDavPath = async (nextPath: string[], openingName?: string) => {
     if (draft instanceof Error || draft.type !== 'webdav' || !webDavDiscovery) return;
-    const nextUrl = buildWebDavDirectoryUrl(webDavDiscovery.rootUrl, nextPath);
-    if (!nextUrl) { clearWebDavTest(); setStatus({ kind: 'error', message: '目标文件夹无效，请重新测试。' }); return; }
-    setTested(false); setBusy(true); setStatus({ kind: 'info', message: openingName ? `正在打开“${openingName}”…` : '正在打开文件夹…' });
-    const generation = beginPreviewRequest();
+    const rootUrl = webDavDiscovery.rootUrl;
+    const nextUrl = buildWebDavDirectoryUrl(rootUrl, nextPath);
+    if (!nextUrl) { setWebDavPickerStatus({ kind: 'error', message: '目标文件夹无效，请重新选择。' }); return; }
+    const generation = ++webDavBrowseGeneration.current;
+    setWebDavPickerBusy(true);
+    setWebDavPickerStatus({ kind: 'info', message: openingName ? `正在打开“${openingName}”…` : '正在打开文件夹…' });
     try {
-      const response = await operations.test({ ...draft, url: webDavDiscovery.rootUrl, folderPath: nextPath });
-      if (!requestIsCurrent(generation)) return;
-      if (!response.ok) { setStatus({ kind: 'error', message: response.error.message }); return; }
-      if (response.protected !== true) { setStatus({ kind: 'error', message: 'WebDAV 返回了无效的安全测试结果。' }); return; }
+      const response = await operations.test({ ...draft, url: rootUrl, folderPath: nextPath });
+      if (!mounted.current || webDavBrowseGeneration.current !== generation) return;
+      if (!response.ok) { setWebDavPickerStatus({ kind: 'error', message: response.error.message }); return; }
+      if (response.protected !== true) { setWebDavPickerStatus({ kind: 'error', message: 'WebDAV 返回了无效的安全测试结果。' }); return; }
       const directories = response.directories ?? [];
-      setWebDavDiscovery({ rootUrl: webDavDiscovery.rootUrl, currentUrl: nextUrl, directories, path: nextPath });
-      setStatus({ kind: 'success', message: directories.length ? '已进入文件夹，可继续选择下一层。' : '已进入文件夹，当前层没有子文件夹。' });
+      setWebDavDiscovery({ rootUrl, currentUrl: nextUrl, directories, path: nextPath });
+      setWebDavPickerStatus({ kind: 'success', message: directories.length ? '已进入文件夹，可继续选择下一层。' : '已进入文件夹，当前层没有子文件夹。' });
     } catch {
-      if (requestIsCurrent(generation)) setStatus({ kind: 'error', message: '打开文件夹失败，请重试。' });
+      if (mounted.current && webDavBrowseGeneration.current === generation) setWebDavPickerStatus({ kind: 'error', message: '打开文件夹失败，请重试。' });
     } finally {
-      if (requestIsCurrent(generation)) setBusy(false);
+      if (mounted.current && webDavBrowseGeneration.current === generation) setWebDavPickerBusy(false);
     }
   };
 
@@ -329,16 +345,17 @@ export function SourceEditor({ source, type, initialMode = 'edit', operations, o
     if (draft instanceof Error || draft.type !== 'webdav' || !webDavDiscovery) return;
     const selectedUrl = webDavDiscovery.rootUrl;
     const selectedPath = webDavDiscovery.path;
-    setWebDavPath(selectedPath); setTested(false); setBusy(true); setStatus({ kind: 'info', message: '正在加载所选文件夹的图片…' });
+    setWebDavPath(selectedPath); setTested(false); setWebDavPickerBusy(true); setWebDavPickerStatus({ kind: 'info', message: '正在加载所选文件夹的图片…' });
     const generation = beginPreviewRequest();
     try {
       const previewResult = await materializeRemotePreview({ ...draft, url: selectedUrl, folderPath: selectedPath }, generation, { allowEmpty: true });
       if (!requestIsCurrent(generation) || !previewResult) return;
-      if (!previewResult.ok) { setStatus({ kind: 'error', message: `文件夹已选择，但预览失败：${previewResult.message}` }); return; }
+      if (!previewResult.ok) { setWebDavPickerStatus({ kind: 'error', message: `无法加载所选文件夹：${previewResult.message}` }); return; }
       setPreview(previewResult.entries);
       setPreviewCursor({ nextOffset: previewResult.nextOffset, hasMore: previewResult.hasMore });
       setTested(true);
       setWebDavPickerOpen(false);
+      setWebDavPickerStatus(null);
       if (source && editorMode === 'manage') {
         await onSave({ ...draft, url: selectedUrl, folderPath: selectedPath, updatedAt: Date.now() }, { stayOpen: true });
         if (!requestIsCurrent(generation)) return;
@@ -347,14 +364,49 @@ export function SourceEditor({ source, type, initialMode = 'edit', operations, o
       }
       setStatus({ kind: 'success', message: webDavSuccessMessage(previewResult.entries.length) });
     } catch {
-      if (requestIsCurrent(generation)) setStatus({ kind: 'error', message: '加载所选文件夹图片失败，请重试。' });
+      if (requestIsCurrent(generation)) setWebDavPickerStatus({ kind: 'error', message: '加载所选文件夹图片失败，请重试。' });
     } finally {
-      if (requestIsCurrent(generation)) setBusy(false);
+      if (requestIsCurrent(generation)) setWebDavPickerBusy(false);
+    }
+  };
+
+  const openWebDavPicker = async () => {
+    if (draft instanceof Error) { setStatus({ kind: 'error', message: draft.message }); return; }
+    if (draft.type !== 'webdav') return;
+    const generation = ++webDavBrowseGeneration.current;
+    const previousStatus = status;
+    setBusy(true);
+    try {
+      const operation = () => mounted.current && webDavBrowseGeneration.current === generation ? operations.test(draft) : Promise.resolve(null);
+      const permissionUrls = permissionTargetsForSource(draft);
+      if (permissionUrls.length) setStatus({ kind: 'info', message: '请在浏览器弹出的权限窗口中允许访问目标域名，之后会自动继续测试。' });
+      const response = permissionUrls.length
+        ? await operations.withOriginPermissions(permissionUrls, operation)
+        : { ok: true as const, value: await operation() };
+      if (!mounted.current || webDavBrowseGeneration.current !== generation) return;
+      if (!response.ok) { setStatus({ kind: 'error', message: response.error.message }); return; }
+      if (response.value === null) return;
+      if (!response.value.ok) { setStatus({ kind: 'error', message: response.value.error.message }); return; }
+      if (response.value.protected !== true) { setStatus({ kind: 'error', message: 'WebDAV 返回了无效的安全测试结果。' }); return; }
+      const baseUrl = buildWebDavDirectoryUrl(draft.url, []);
+      if (!baseUrl) { setStatus({ kind: 'error', message: 'WebDAV 地址无效。' }); return; }
+      const currentUrl = buildWebDavDirectoryUrl(baseUrl, draft.folderPath ?? []);
+      if (!currentUrl) { setStatus({ kind: 'error', message: 'WebDAV 文件夹路径无效。' }); return; }
+      const directories = response.value.directories ?? [];
+      setStatus(previousStatus);
+      setWebDavDiscovery({ rootUrl: baseUrl, currentUrl, directories, path: draft.folderPath ?? [] });
+      setWebDavPickerStatus({ kind: 'success', message: directories.length ? '连接成功。请选择目标文件夹。' : '连接成功。当前文件夹没有子文件夹，可直接确认当前文件夹。' });
+      setWebDavPickerOpen(true);
+    } catch {
+      if (mounted.current && webDavBrowseGeneration.current === generation) setStatus({ kind: 'error', message: '连接测试失败，请检查配置后重试。' });
+    } finally {
+      if (mounted.current && webDavBrowseGeneration.current === generation) setBusy(false);
     }
   };
 
   const runTest = async () => {
     if (draft instanceof Error) { setStatus({ kind: 'error', message: draft.message }); return; }
+    if (draft.type === 'webdav') { await openWebDavPicker(); return; }
     if (draft.type === 'json-api') return;
     const tmdbGeneration = draft.type === 'tmdb' ? ++tmdbConnectionGeneration.current : tmdbConnectionGeneration.current;
     const generation = beginPreviewRequest();
@@ -373,38 +425,25 @@ export function SourceEditor({ source, type, initialMode = 'edit', operations, o
       if (!response.ok) { setStatus({ kind: 'error', message: response.error.message }); return; }
       if (response.value === null) return;
       if (!response.value.ok) { setStatus({ kind: 'error', message: response.value.error.message }); setPreview(response.value.entries ?? []); return; }
-      if (draft.type === 'webdav' && response.value.protected !== true) { setStatus({ kind: 'error', message: 'WebDAV 返回了无效的安全测试结果。' }); return; }
       if (draft.type === 'tmdb') {
         setTested(true);
         setTmdbMetadata(null);
-        setStatus({ kind: 'success', message: '连接成功。正在加载分类…' });
+        setStatus({ kind: 'success', message: '连接成功。正在加载配置选项…' });
         setBusy(false);
         void operations.loadTmdbMetadata(draft).then((metadata) => {
           if (!tmdbConnectionRequestIsCurrent(tmdbGeneration)) return;
           if (!metadata.ok) {
-            setStatus({ kind: 'error', message: '连接成功，但分类加载失败，请重试测试。' });
+            setStatus({ kind: 'error', message: '连接成功，但配置选项加载失败，请重试测试。' });
             return;
           }
           setTmdbMetadata(metadata);
           setStatus({ kind: 'success', message: '连接成功。' });
         }, () => {
-          if (tmdbConnectionRequestIsCurrent(tmdbGeneration)) setStatus({ kind: 'error', message: '连接成功，但分类加载失败，请重试测试。' });
+          if (tmdbConnectionRequestIsCurrent(tmdbGeneration)) setStatus({ kind: 'error', message: '连接成功，但配置选项加载失败，请重试测试。' });
         });
         return;
       }
       setTested(true);
-      if (draft.type === 'webdav') {
-        const baseUrl = buildWebDavDirectoryUrl(draft.url, []);
-        if (!baseUrl) { setTested(false); setStatus({ kind: 'error', message: 'WebDAV 地址无效。' }); return; }
-        const currentUrl = buildWebDavDirectoryUrl(baseUrl, draft.folderPath ?? []);
-        if (!currentUrl) { setTested(false); setStatus({ kind: 'error', message: 'WebDAV 文件夹路径无效。' }); return; }
-        const directories = response.value.protected === true ? response.value.directories ?? [] : [];
-        setWebDavDiscovery({ rootUrl: baseUrl, currentUrl, directories, path: draft.folderPath ?? [] });
-        setWebDavPickerOpen(true);
-        setTested(false);
-        setStatus({ kind: 'success', message: directories.length ? '连接成功。请选择目标文件夹。' : '连接成功。当前文件夹没有子文件夹，可直接确认当前文件夹。' });
-        return;
-      }
       const previewResult = await materializeRemotePreview(draft, generation);
       if (!requestIsCurrent(generation) || !previewResult) return;
       if (!previewResult.ok) { setStatus({ kind: 'error', message: previewResult.message }); return; }
@@ -528,6 +567,10 @@ export function SourceEditor({ source, type, initialMode = 'edit', operations, o
   };
 
   const tmdbGenres = tmdbMetadata?.ok ? tmdbMetadata.genres : [];
+  const tmdbLanguages = tmdbMetadata?.ok ? tmdbMetadata.languages ?? [] : [];
+  const tmdbRegions = tmdbMetadata?.ok ? tmdbMetadata.regions ?? [] : [];
+  const languageNames = useMemo(() => displayNames(interfaceLanguage, 'language'), [interfaceLanguage]);
+  const regionNames = useMemo(() => displayNames(interfaceLanguage, 'region'), [interfaceLanguage]);
 
   const importFiles = async (files: File[]) => {
     setPendingFiles(files);
@@ -595,35 +638,39 @@ export function SourceEditor({ source, type, initialMode = 'edit', operations, o
     </article>)}
   </div>;
   const previewList = preview.length > 0 || previewLoading ? <div className="source-preview" aria-label="连接预览" onScroll={onPreviewScroll}>
-    {preview.map((entry) => 'url' in entry && entry.url ? <ThumbnailImage key={entry.id} src={entry.url} alt="图片预览缩略图" title={entry.description ?? '图片预览'} /> : null)}
+    {preview.length > 0 && <div className="source-preview__grid">
+      {preview.map((entry) => 'url' in entry && entry.url ? <ThumbnailImage key={entry.id} src={entry.url} alt="图片预览缩略图" title={entry.description ?? '图片预览'} /> : null)}
+    </div>}
     {previewLoading && <p className="source-preview__loading" role="status">{preview.length ? '正在加载更多预览…' : '正在加载图片预览…'}</p>}
+    {!previewLoading && previewCursor.hasMore && <button className="text-button text-button--with-icon source-preview__more" type="button" aria-label="加载更多预览" title="加载更多预览" onClick={() => void loadMorePreview()}><Icon name="arrow-down" /><span>加载更多</span></button>}
   </div> : null;
-  const webDavPickerDialog = webDavPickerOpen && webDavDiscovery && <div className="confirm-backdrop">
+  const webDavPickerDialog = webDavPickerOpen && webDavDiscovery && createPortal(<div className="webdav-picker-backdrop">
     <section className="webdav-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="webdav-picker-title">
       <header className="webdav-picker-dialog__header">
         <div><p className="settings-eyebrow">WebDAV</p><h3 id="webdav-picker-title">选择 WebDAV 文件夹</h3></div>
-        <button className="text-button text-button--with-icon" type="button" aria-label="取消选择" title="取消" disabled={busy} onClick={() => setWebDavPickerOpen(false)}><Icon name="close" /><span>取消</span></button>
+        <button className="text-button text-button--with-icon" type="button" aria-label="取消选择" title="取消" disabled={webDavPickerBusy} onClick={closeWebDavPicker}><Icon name="close" /><span>取消</span></button>
       </header>
       <div className="webdav-picker">
         <p className="webdav-picker__path">当前路径：/{webDavDiscovery.path.join('/')}</p>
         <div className="webdav-picker__browser" aria-label="WebDAV 文件夹层级">
           <nav className="webdav-picker__crumbs" aria-label="当前文件夹路径">
-            <button type="button" className="webdav-picker__crumb" disabled={busy || webDavDiscovery.path.length === 0} onClick={() => void browseWebDavAncestor(0)}>根目录</button>
-            {webDavDiscovery.path.map((segment, index) => <button key={`${segment}-${index}`} type="button" className="webdav-picker__crumb" disabled={busy || index === webDavDiscovery.path.length - 1} onClick={() => void browseWebDavAncestor(index + 1)}>{segment}</button>)}
+            <button type="button" className="webdav-picker__crumb" disabled={webDavPickerBusy || webDavDiscovery.path.length === 0} onClick={() => void browseWebDavAncestor(0)}>根目录</button>
+            {webDavDiscovery.path.map((segment, index) => <button key={`${segment}-${index}`} type="button" className="webdav-picker__crumb" disabled={webDavPickerBusy || index === webDavDiscovery.path.length - 1} onClick={() => void browseWebDavAncestor(index + 1)}>{segment}</button>)}
           </nav>
           <div className="webdav-picker__folders" aria-label="子文件夹">
             {webDavDiscovery.directories.length
-              ? webDavDiscovery.directories.map((directory) => <button key={directory.id} type="button" className="webdav-picker__folder" aria-label={`打开文件夹 ${directory.name}`} title={directory.name} disabled={busy} onClick={() => void browseWebDavDirectory(directory.id)}><Icon name="folder" /><span>{directory.name}</span></button>)
+              ? webDavDiscovery.directories.map((directory) => <button key={directory.id} type="button" className="webdav-picker__folder" aria-label={`打开文件夹 ${directory.name}`} title={directory.name} disabled={webDavPickerBusy} onClick={() => void browseWebDavDirectory(directory.id)}><Icon name="folder" /><span>{directory.name}</span></button>)
               : <p className="webdav-picker__empty">当前层没有子文件夹</p>}
           </div>
         </div>
+        {webDavPickerStatus && <p className={`form-message form-message--${webDavPickerStatus.kind}`} role={webDavPickerStatus.kind === 'error' ? 'alert' : 'status'}>{webDavPickerStatus.message}</p>}
       </div>
       <div className="webdav-picker-dialog__actions">
-        <button className="button button--secondary button--with-icon" type="button" aria-label="取消" title="取消" disabled={busy} onClick={() => setWebDavPickerOpen(false)}><Icon name="close" /><span>取消</span></button>
-        <button className="button button--with-icon" type="button" aria-label={busy ? '正在确认选择…' : '确认选择'} title={busy ? '正在确认选择…' : '确认选择'} disabled={busy} onClick={() => void confirmWebDavDirectory()}>{busy ? <Icon name="refresh" /> : <Icon name="check" />}<span>{busy ? '加载中' : '确认选择'}</span></button>
+        <button className="button button--secondary button--with-icon" type="button" aria-label="取消" title="取消" disabled={webDavPickerBusy} onClick={closeWebDavPicker}><Icon name="close" /><span>取消</span></button>
+        <button className="button button--with-icon" type="button" aria-label={webDavPickerBusy ? '正在确认选择…' : '确认选择'} title={webDavPickerBusy ? '正在确认选择…' : '确认选择'} disabled={webDavPickerBusy} onClick={() => void confirmWebDavDirectory()}>{webDavPickerBusy ? <Icon name="refresh" /> : <Icon name="check" />}<span>{webDavPickerBusy ? '加载中' : '确认选择'}</span></button>
       </div>
     </section>
-  </div>;
+  </div>, document.body);
 
   if (source && editorMode === 'manage') return (
     <>
@@ -714,8 +761,8 @@ export function SourceEditor({ source, type, initialMode = 'edit', operations, o
           <label className="field"><span>媒体类型</span><select value={tmdbMedia} onChange={(event) => setTmdbMedia(event.target.value as TmdbSourceConfig['media'])}><option value="movie">电影</option><option value="tv">电视节目</option></select></label>
           <label className="field"><span>内容分类</span><select value={tmdbFeed} disabled={!tested} onChange={(event) => setTmdbFeed(event.target.value)}>{feeds.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label className="field"><span>官方分类</span><select value={tmdbGenre} disabled={!tested || !tmdbMetadata} onChange={(event) => chooseTmdbGenre(event.target.value)}><option value="">全部类型</option>{tmdbGenres.map((genre) => <option key={genre.id} value={genre.id}>{genre.name}</option>)}</select></label>
-          <label className="field"><span>语言</span><input value={tmdbLanguage} onChange={(event) => setTmdbLanguage(event.target.value)} placeholder="zh-CN" /></label>
-          {tmdbMedia === 'movie' && <label className="field"><span>地区</span><input value={tmdbRegion} onChange={(event) => setTmdbRegion(event.target.value)} placeholder="CN" /></label>}
+          <label className="field"><span>语言</span><select value={tmdbLanguage} disabled={!tested || !tmdbMetadata} onChange={(event) => setTmdbLanguage(event.target.value)}><option value="">默认语言</option>{tmdbLanguage && !tmdbLanguages.includes(tmdbLanguage) && <option value={tmdbLanguage}>{tmdbLanguage}</option>}{tmdbLanguages.map((language) => <option key={language} value={language}>{displayName(languageNames, language)}</option>)}</select></label>
+          {tmdbMedia === 'movie' && <label className="field"><span>地区</span><select value={tmdbRegion} disabled={!tested || !tmdbMetadata} onChange={(event) => setTmdbRegion(event.target.value)}><option value="">全部地区</option>{tmdbRegion && !tmdbRegions.includes(tmdbRegion) && <option value={tmdbRegion}>{tmdbRegion}</option>}{tmdbRegions.map((region) => <option key={region} value={region}>{displayName(regionNames, region)}</option>)}</select></label>}
           {tmdbFeed === 'discover' && <>
             <label className="field"><span>{tmdbMedia === 'movie' ? '上映年份' : '首播年份'}</span><input type="number" min="1900" max="2100" value={tmdbYear} onChange={(event) => setTmdbYear(event.target.value)} /></label>
             <label className="field"><span>{tmdbMedia === 'movie' ? '上映日期从' : '首播日期从'}</span><input type="date" value={tmdbDateFrom} onChange={(event) => setTmdbDateFrom(event.target.value)} /></label>
@@ -751,6 +798,16 @@ function ThumbnailImage({ src, alt, title }: { src: string; alt: string; title?:
     {loading && <span className="source-preview__image-loading" role="progressbar" aria-label="缩略图加载中"><span aria-hidden="true" /></span>}
     <img className={loading ? 'is-loading' : ''} src={src} alt={alt} title={title} loading="lazy" decoding="async" onLoad={() => setLoading(false)} onError={() => setLoading(false)} />
   </span>;
+}
+
+function displayNames(locale: string, type: 'language' | 'region'): Intl.DisplayNames | undefined {
+  try { return new Intl.DisplayNames(locale, { type }); }
+  catch { return undefined; }
+}
+
+function displayName(names: Intl.DisplayNames | undefined, code: string): string {
+  const name = names?.of(code);
+  return name && name !== code ? `${name} (${code})` : code;
 }
 
 export function permissionTargetsForSource(source: SourceConfig): string[] {

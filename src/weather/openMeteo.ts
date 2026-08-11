@@ -117,7 +117,7 @@ export class OpenMeteoService {
     const raw = await this.fetchJson(url.toString());
     if (!isRecord(raw)) throw new WeatherServiceError('parse', '天气服务返回了无法识别的数据。');
     const results = Array.isArray(raw.results) ? raw.results : [];
-    return results.slice(0, 6).flatMap(normalizeCity);
+    return results.slice(0, 6).flatMap((value) => normalizeCity(value, locale));
   }
 
   async current(location: WeatherLocation): Promise<WeatherSnapshot> {
@@ -186,7 +186,7 @@ export async function reverseGeocodeLocation(latitude: number, longitude: number
     const city = nonEmpty(raw.city) ?? nonEmpty(raw.locality);
     const region = nonEmpty(raw.principalSubdivision);
     const country = nonEmpty(raw.countryName);
-    const label = [...new Set([city, region, country].filter(Boolean))].join('，');
+    const label = localizedLocationLabel([city, region, country], locale);
     if (!label) throw new WeatherServiceError('parse', '未能识别当前位置的城市。');
     return label.slice(0, 160);
   } catch (error) {
@@ -200,26 +200,31 @@ export function weatherCacheKey(input: WeatherLocation): string {
   return `${normalized.location.trim().toLocaleLowerCase()}|${normalized.latitude.toFixed(5)}|${normalized.longitude.toFixed(5)}`;
 }
 
-export function describeWeatherCode(code: number, isDay: boolean): { icon: string; label: string } {
-  if (code === 0) return { icon: isDay ? '☀' : '☾', label: '晴朗' };
-  if ([1, 2, 3].includes(code)) return { icon: code === 1 ? (isDay ? '🌤' : '☁') : '☁', label: code === 1 ? '晴间多云' : '多云' };
-  if ([45, 48].includes(code)) return { icon: '≋', label: '有雾' };
-  if ([51, 53, 55].includes(code)) return { icon: '🌦', label: '毛毛雨' };
-  if ([56, 57, 66, 67].includes(code)) return { icon: '◇', label: '冻雨' };
-  if ([61, 63, 65].includes(code)) return { icon: '🌧', label: code === 61 ? '小雨' : '降雨' };
-  if ([71, 73, 75, 77].includes(code)) return { icon: '❄', label: '降雪' };
-  if ([80, 81, 82].includes(code)) return { icon: '🌦', label: '阵雨' };
-  if ([85, 86].includes(code)) return { icon: '❄', label: '阵雪' };
-  if ([95, 96, 99].includes(code)) return { icon: 'ϟ', label: '雷暴' };
-  return { icon: '·', label: '天气' };
+export function describeWeatherCode(code: number, isDay: boolean, locale = 'zh-CN'): { icon: string; label: string } {
+  const english = locale.toLowerCase().startsWith('en');
+  if (code === 0) return { icon: isDay ? '☀' : '☾', label: english ? 'Clear' : '晴朗' };
+  if ([1, 2, 3].includes(code)) return { icon: code === 1 ? (isDay ? '🌤' : '☁') : '☁', label: code === 1 ? (english ? 'Mostly clear' : '晴间多云') : (english ? 'Cloudy' : '多云') };
+  if ([45, 48].includes(code)) return { icon: '≋', label: english ? 'Fog' : '有雾' };
+  if ([51, 53, 55].includes(code)) return { icon: '🌦', label: english ? 'Drizzle' : '毛毛雨' };
+  if ([56, 57, 66, 67].includes(code)) return { icon: '◇', label: english ? 'Freezing rain' : '冻雨' };
+  if ([61, 63, 65].includes(code)) return { icon: '🌧', label: code === 61 ? (english ? 'Light rain' : '小雨') : (english ? 'Rain' : '降雨') };
+  if ([71, 73, 75, 77].includes(code)) return { icon: '❄', label: english ? 'Snow' : '降雪' };
+  if ([80, 81, 82].includes(code)) return { icon: '🌦', label: english ? 'Rain showers' : '阵雨' };
+  if ([85, 86].includes(code)) return { icon: '❄', label: english ? 'Snow showers' : '阵雪' };
+  if ([95, 96, 99].includes(code)) return { icon: 'ϟ', label: english ? 'Thunderstorm' : '雷暴' };
+  return { icon: '·', label: english ? 'Weather' : '天气' };
 }
 
-function normalizeCity(value: unknown): CityResult[] {
+function normalizeCity(value: unknown, locale: string): CityResult[] {
   if (!isRecord(value) || !Number.isSafeInteger(value.id) || typeof value.name !== 'string' || !validCoordinates(value.latitude, value.longitude)) return [];
   const name = value.name.trim().slice(0, 100); if (!name) return [];
   const country = nonEmpty(value.country); const admin1 = nonEmpty(value.admin1);
-  const label = [...new Set([name, admin1, country].filter(Boolean))].join('，');
+  const label = localizedLocationLabel([name, admin1, country], locale);
   return [{ id: value.id as number, name, label, latitude: value.latitude as number, longitude: value.longitude as number, ...(country ? { country } : {}), ...(admin1 ? { admin1 } : {}) }];
+}
+
+function localizedLocationLabel(parts: readonly (string | undefined)[], locale: string): string {
+  return [...new Set(parts.filter((part): part is string => Boolean(part)))].join(locale.toLowerCase().startsWith('en') ? ', ' : '，');
 }
 
 async function readBoundedText(response: Response, controller: AbortController, tooLargeMessage = '天气服务返回的数据过大。'): Promise<string> {

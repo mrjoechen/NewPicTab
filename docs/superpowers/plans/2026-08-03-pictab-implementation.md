@@ -512,19 +512,11 @@ Use API Read Access Token as a Bearer header. Test with `/3/configuration`, buil
 
 - [ ] **Step 4: Encode provider availability**
 
-Export immutable provider descriptors:
-
-```ts
-export const PROVIDERS = [
-  { id: 'tmdb', enabled: true, guideUrl: 'https://developer.themoviedb.org/v4/docs/getting-started', applyUrl: 'https://www.themoviedb.org/settings/api' },
-  { id: 'unsplash', enabled: false, guideUrl: 'https://help.unsplash.com/en/articles/2511245-unsplash-api-guidelines', reason: 'Official API rules restrict wallpaper applications.' },
-  { id: 'pexels', enabled: false, guideUrl: 'https://www.pexels.com/api/documentation/', reason: 'Official API rules restrict wallpaper applications.' }
-] as const;
-```
+Export immutable TMDB provider metadata with its official onboarding and attribution links.
 
 - [ ] **Step 5: Verify and commit**
 
-Run the focused tests; expect PASS for token masking, official category retrieval, filters, pagination, missing images, and disabled-provider immutability.
+Run the focused tests; expect PASS for token masking, official category retrieval, filters, pagination, missing images, and provider metadata immutability.
 
 ```bash
 git add src/sources/tmdb* src/sources/providers*
@@ -556,7 +548,7 @@ Create a discriminated `BackgroundRequest`/`BackgroundResponse` union. Register 
 
 - [ ] **Step 4: Implement remote cache bounds**
 
-Cache image responses only when the adapter permits it. Store access metadata in IndexedDB, enforce a default 250 MB target, and evict least-recently-used entries while protecting the current and next keys. Never cache Unsplash/Pexels because those adapters are disabled; respect TMDB cache removal on source deletion.
+Cache image responses only when the adapter permits it. Store access metadata in IndexedDB, enforce a default 250 MB target, and evict least-recently-used entries while protecting the current and next keys. Respect TMDB cache removal on source deletion.
 
 - [ ] **Step 5: Verify and commit**
 
@@ -747,7 +739,7 @@ git commit -m "feat: add configurable search and shortcuts"
 
 - [ ] **Step 1: Write failing resilience and compliance tests**
 
-Test fallback display with no source/offline source, no modal error over the resting page, redaction of tokens/passwords/Authorization headers, disabled Unsplash/Pexels cards, official links, TMDB notice, and clear-all-data confirmation.
+Test fallback display with no source/offline source, no modal error over the resting page, redaction of tokens/passwords/Authorization headers, TMDB notice and official links, and clear-all-data confirmation.
 
 - [ ] **Step 2: Verify failure**
 
@@ -761,7 +753,7 @@ First run shows the bundled fallback plus one compact invitation to add a source
 
 - [ ] **Step 4: Implement About and data clearing**
 
-Show version, repository/license link, no-telemetry statement, local credential risk, TMDB approved attribution text/logo treatment, and disabled-provider explanations with official URLs. "Clear all PicTab data" lists settings, local images, remote cache, weather cache, and credentials, then deletes each only after explicit confirmation.
+Show version, repository/license link, no-telemetry statement, local credential risk, and TMDB approved attribution text/logo treatment. "Clear all PicTab data" lists settings, local images, remote cache, weather cache, and credentials, then deletes each only after explicit confirmation.
 
 - [ ] **Step 5: Verify and commit**
 
@@ -814,7 +806,6 @@ Document:
 - Every permission and when optional origin/geolocation access is requested.
 - WebDAV app-password recommendation and local credential risk.
 - TMDB application links, token entry, connection test, category selection, attribution, and non-commercial status.
-- Why Unsplash/Pexels are informational only.
 - Direct URL/generic JSON examples with safe HTTPS endpoints and field paths.
 - Privacy/no-telemetry statement and data clearing.
 

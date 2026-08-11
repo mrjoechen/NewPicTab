@@ -31,7 +31,7 @@ export function SearchBox({ settings, language = 'zh-CN', navigate = assignLocat
     const target = buildSearchUrl(activeSettings, query);
     if (!target) return;
     try { navigate(target); setNavigationError(''); }
-    catch { setNavigationError('无法打开搜索结果。'); }
+    catch { setNavigationError(language === 'zh-CN' ? '无法打开搜索结果。' : 'Unable to open the search results.'); }
   };
   const guardIme = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter' && (composing.current || event.nativeEvent.isComposing || event.keyCode === 229)) {
@@ -66,7 +66,7 @@ export function SearchBox({ settings, language = 'zh-CN', navigate = assignLocat
       title={engineLabel}
       onClick={() => setEngineMenuOpen((open) => !open)}
     >
-      {activeEngine ? <img src={activeEngine.iconUrl} alt="" referrerPolicy="no-referrer" /> : <Icon name="search" size={16} />}
+      {activeEngine ? <img src={activeEngine.iconUrl} alt="" /> : <Icon name="search" size={16} />}
     </button>
     {engineMenuOpen && <div className="search-box__engine-menu" role="listbox" aria-label={engineLabel}>
       {Object.entries(SEARCH_ENGINES).map(([value, meta]) => <button
@@ -76,7 +76,7 @@ export function SearchBox({ settings, language = 'zh-CN', navigate = assignLocat
         aria-selected={activeSettings.engine === value}
         onClick={() => chooseEngine(value as typeof engine)}
       >
-        <img src={meta.iconUrl} alt="" referrerPolicy="no-referrer" />
+        <img src={meta.iconUrl} alt="" />
         <span>{meta.label}</span>
       </button>)}
       {settings.engine === 'custom' && <button

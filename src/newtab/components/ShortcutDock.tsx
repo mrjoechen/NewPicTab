@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 
 import type { Shortcut, ShortcutVisibleLimit } from '../../domain/types';
 import { boundedShortcutDockScale, canonicalShortcutUrl, firstGrapheme, isSafeShortcutIcon, shortcutColor } from '../../domain/shortcuts';
+import { useText } from '../i18n';
 export { canonicalShortcutUrl, firstGrapheme, isSafeShortcutIcon, MAX_SHORTCUT_ICON_BYTES, shortcutColor, validateShortcutUrl } from '../../domain/shortcuts';
 
 export interface ShortcutDockProps {
@@ -12,18 +13,19 @@ export interface ShortcutDockProps {
 }
 
 export function ShortcutDock({ enabled, shortcuts, maxVisible = 6, scale = 1 }: ShortcutDockProps) {
+  const { text } = useText();
   const safeShortcuts = shortcuts.flatMap((shortcut) => {
     const url = canonicalShortcutUrl(shortcut.url);
     return url ? [{ shortcut, url }] : [];
   }).slice(0, maxVisible);
   if (!enabled || safeShortcuts.length === 0) return null;
 
-  return <nav className="shortcut-dock" aria-label="快捷网址" style={shortcutDockScaleStyle(scale)}>
+  return <nav className="shortcut-dock" aria-label={text('快捷网址', 'Shortcuts')} style={shortcutDockScaleStyle(scale)}>
     {safeShortcuts.map(({ shortcut, url }) => <a
       key={shortcut.id}
       className="shortcut-dock__item"
       href={url}
-      aria-label={`打开 ${shortcut.title}`}
+      aria-label={text(`打开 ${shortcut.title}`, `Open ${shortcut.title}`)}
       title={shortcut.title}
     >
       <ShortcutTile shortcut={shortcut} />

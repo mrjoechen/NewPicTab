@@ -12,7 +12,7 @@ export interface ClockWeatherProps {
   backgroundImage?: Pick<BackgroundImage, 'id' | 'sourceId' | 'url'> | null;
 }
 
-export function ClockWeather({ settings, weather, locale = navigator.language, backgroundImage }: ClockWeatherProps) {
+export function ClockWeather({ settings, weather, locale = 'zh-CN', backgroundImage }: ClockWeatherProps) {
   const [now, setNow] = useState(() => new Date());
   const [textTone, setTextTone] = useState<ClockTextTone>('light');
   const reducedMotion = useReducedMotion();
@@ -51,11 +51,11 @@ export function ClockWeather({ settings, weather, locale = navigator.language, b
     hour: 'numeric', minute: '2-digit', ...(settings.clock.showSeconds ? { second: '2-digit' } : {}), hour12: settings.clock.hour12
   }), [locale, now, settings.clock.hour12, settings.clock.showSeconds]);
   const date = useMemo(() => formatDateParts(now, settings.date.locale || locale, settings.date.format, settings.date.showLunar), [locale, now, settings.date.format, settings.date.locale, settings.date.showLunar]);
-  const condition = weather ? describeWeatherCode(weather.weatherCode, weather.isDay) : undefined;
+  const condition = weather ? describeWeatherCode(weather.weatherCode, weather.isDay, locale) : undefined;
   const style = clockScaleStyle(settings.clock.scale);
 
   if (!settings.clock.enabled && !settings.date.enabled && !(settings.weather.enabled && weather)) return null;
-  return <section className="clock-weather" aria-label="时间与天气" data-size={settings.clock.size} data-position={settings.clock.position} data-search={String(settings.search.enabled)} data-shortcuts={String(settings.shortcuts.enabled)} data-tone={textTone} style={style}>
+  return <section className="clock-weather" aria-label={locale === 'zh-CN' ? '时间与天气' : 'Time and weather'} data-size={settings.clock.size} data-position={settings.clock.position} data-search={String(settings.search.enabled)} data-shortcuts={String(settings.shortcuts.enabled)} data-tone={textTone} style={style}>
     {settings.clock.enabled && <time className="clock-weather__time" data-testid="clock" dateTime={now.toISOString()}>{renderTimeParts(time)}</time>}
     {settings.date.enabled && <time className="clock-weather__date" data-testid="date" dateTime={dateOnly(now)} aria-label={date.join(' ')}>
       {date.map((part, index) => <span key={`${part}-${index}`} className="clock-weather__date-part">{part}</span>)}
