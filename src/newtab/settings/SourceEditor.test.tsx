@@ -368,6 +368,22 @@ describe('SourceEditor lossless editing', () => {
     expect(loadTmdbMetadata).toHaveBeenCalledTimes(2);
   });
 
+  it('lets TMDB static feed and discover filters be configured before testing the connection', async () => {
+    const source: TmdbSourceConfig = { id: 'tmdb-config-first', name: 'TMDB', type: 'tmdb', enabled: true, createdAt: 1, updatedAt: 1, token: 'token', media: 'movie', feed: 'popular', discoverFilters: {} };
+    const onSave = vi.fn(async () => undefined);
+    render(<SourceEditor source={source} type="tmdb" operations={operations} onSave={onSave} onCancel={vi.fn()} onRefresh={vi.fn()} />);
+    const user = userEvent.setup();
+
+    expect(screen.getByLabelText('内容分类')).toBeEnabled();
+    await user.selectOptions(screen.getByLabelText('内容分类'), 'discover');
+    expect(screen.getByLabelText('上映年份')).toBeEnabled();
+    await user.type(screen.getByLabelText('上映年份'), '2026');
+    await user.click(screen.getByRole('button', { name: '保存并使用' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('请先测试 TMDB 连接');
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
   it('preserves direct stable IDs and optional labels when saved unchanged', async () => {
     const source: SourceConfig = { id: 'direct', name: 'Direct', type: 'direct', enabled: false, createdAt: 10, updatedAt: 20, entries: [{ id: 'stable-a', url: 'https://one.example/a.jpg', label: 'A label' }, { id: 'stable-b', url: 'https://two.example/b.jpg' }] };
     await expect(saveUnchanged(source)).resolves.toEqual({ ...source, updatedAt: expect.any(Number) });
