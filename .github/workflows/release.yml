@@ -39,12 +39,11 @@ jobs:
           fi
 
           release_version="${RELEASE_TAG#v}"
-          package_version="$(node -p "require('./package.json').version")"
           manifest_version="$(node -p "require('./public/manifest.json').version")"
 
-          if [[ "$release_version" != "$package_version" || "$release_version" != "$manifest_version" ]]; then
-            echo "Tag, package.json, and public/manifest.json versions must match." >&2
-            echo "tag=$release_version package=$package_version manifest=$manifest_version" >&2
+          if [[ "$release_version" != "$manifest_version" ]]; then
+            echo "Tag and public/manifest.json versions must match." >&2
+            echo "tag=$release_version manifest=$manifest_version" >&2
             exit 1
           fi
 

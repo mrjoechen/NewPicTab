@@ -1,18 +1,36 @@
-# PicTab
+<p align="center">
+  <img src="./public/icons/icon-128.png" alt="PicTab" width="100" height="100"/>
+</p>
+<h1 align="center">PicTab</h1>
+<p align="center">
+  <a href="https://github.com/mrjoechen/PicTab/releases/latest"><img src="https://img.shields.io/github/downloads/mrjoechen/PicTab/total?style=flat" alt="Downloads"></a>
+  <a href="https://github.com/mrjoechen/PicTab/stargazers"><img src="https://img.shields.io/github/stars/mrjoechen/PicTab" alt="stars"></a>
+  <a href="https://ko-fi.com/joechen"><img src="https://img.shields.io/badge/ko--fi-Buy_me_a_coffee-ff5f5f?logo=ko-fi&style=for-the-badgeKo-fi" alt="ko-fi"></a>
+</p>
+<p align="center">
+  <b>English</b> | <a href="README_ZH.md">中文</a>
+</p>
 
-English | [简体中文](README_ZH.md)
+## Overview
 
 PicTab is a minimal Chrome new-tab extension that keeps your images front and center. You can choose a different image source as the background for the new tab, then show only the clock, date, weather, search, and shortcuts you want.
 
 > PicTab is open source under the [MIT License](LICENSE). You may use, copy, modify, and distribute it as long as the copyright and license notices are preserved.
 
-<a href="https://ko-fi.com/joechen"><img src="https://img.shields.io/badge/ko--fi-Buy_me_a_coffee-ff5f5f?logo=ko-fi&style=for-the-badge" alt="ko-fi"></a>
-
 ## Preview
 
-| New tab | Settings |
-| --- | --- |
-| ![PicTab new tab with clock, weather, and search](docs/assets/pictab-new-tab-preview.jpg) | ![PicTab settings with image-source controls](docs/assets/pictab-settings-preview.jpg) |
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="docs/assets/pictab-new-tab-preview.jpg" alt="PicTab new tab with clock, weather, and search" width="100%">
+      <br><sub>PicTab new tab with clock, weather, and search</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="docs/assets/pictab-settings-preview.jpg" alt="PicTab settings with image-source controls" width="100%">
+      <br><sub>PicTab settings with image-source controls</sub>
+    </td>
+  </tr>
+</table>
 
 ## Features
 
