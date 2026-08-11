@@ -30,7 +30,7 @@ describe('AboutPanel', () => {
     expect(screen.getByText(/不包含统计、遥测或跟踪/)).toBeInTheDocument();
     expect(screen.getByText(/持久化配置不会上传到 PicTab 基础设施/)).toBeInTheDocument();
     expect(screen.getByText(/城市或坐标发送给 Open-Meteo/)).toBeInTheDocument();
-    expect(screen.getByText(/搜索控件会从内置搜索服务加载图标，提交后才把查询交给所选搜索引擎/)).toBeInTheDocument();
+    expect(screen.getByText(/搜索引擎图标随扩展内置；只有提交搜索后才会把查询交给所选搜索引擎/)).toBeInTheDocument();
     expect(screen.getByText(/JSON API 会把配置的请求头发送给 API endpoint，并从你授权的图片主机或 CDN 下载图片/)).toBeInTheDocument();
     expect(screen.getByText(/在线图片 URL 会直接请求相应图片主机/)).toBeInTheDocument();
     expect(screen.getByText(/TMDB 会把 API 凭据发送给 TMDB API，并从 TMDB CDN 下载图片/)).toBeInTheDocument();
