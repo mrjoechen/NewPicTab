@@ -32,14 +32,12 @@ Chrome Web Store badge requirements:
 
 1. Open the [Releases page](https://github.com/mrjoechen/PicTab/releases).
 2. Download the latest zip release package.
-3. Unzip it to a local directory.
-4. Open `chrome://extensions`.
-5. Enable **Developer mode** in the top-right corner.
-6. Click **Load unpacked**.
-7. Select the unzipped extension directory.
-8. Open a new tab.
+3. Open `chrome://extensions`.
+4. Enable **Developer mode** in the top-right corner.
+5. Drag the downloaded zip file onto the extensions page to install it.
+6. Open a new tab.
 
-> Chrome cannot load the zip file directly. Unzip it first, then select the extracted directory.
+If drag-and-drop is unavailable in your Chrome environment, unzip the package first, then click **Load unpacked** and select the extracted extension directory.
 
 ## Image sources
 
