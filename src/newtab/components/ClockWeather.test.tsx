@@ -38,6 +38,20 @@ describe('ClockWeather', () => {
     expect(screen.getByTestId('clock')).toHaveTextContent(/1:05:07\s?PM/i);
   });
 
+  it('renders the localized 12-hour day period separately in locale order', () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date('2026-08-04T13:05:06'));
+    const value = widgets(); value.clock.hour12 = true; value.date.enabled = false;
+    const view = render(<ClockWeather settings={value} locale="en-US" />);
+    const englishClock = screen.getByTestId('clock');
+    expect(englishClock.querySelector('.clock-weather__day-period')).toHaveTextContent('PM');
+    expect(englishClock.lastElementChild).toHaveClass('clock-weather__day-period');
+
+    view.rerender(<ClockWeather settings={value} locale="zh-CN" />);
+    const chineseClock = screen.getByTestId('clock');
+    expect(chineseClock.querySelector('.clock-weather__day-period')).toHaveTextContent('下午');
+    expect(chineseClock.firstElementChild).toHaveClass('clock-weather__day-period');
+  });
+
   it('localizes weather conditions and accessibility labels with the interface language', () => {
     const value = widgets(); value.date.enabled = false; value.weather.enabled = true;
     render(<ClockWeather settings={value} locale="en-US" weather={{ location: 'Shanghai, China', temperature: 23, temperatureUnit: '°C', weatherCode: 1, isDay: true, fetchedAt: 1, stale: false }} />);

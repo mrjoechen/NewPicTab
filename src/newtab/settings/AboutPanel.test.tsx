@@ -23,6 +23,19 @@ describe('AboutPanel', () => {
     expect(screen.getByRole('link', { name: 'TMDB 标识与归因规范' })).toHaveAttribute('href', 'https://www.themoviedb.org/about/logos-attribution');
   });
 
+  it('offers a safe Ko-fi support link', () => {
+    render(<AboutPanel version="0.1.0" onCleared={vi.fn()} />);
+
+    const support = screen.getByRole('link', { name: '支持作者' });
+    expect(support).toHaveAttribute('href', 'https://ko-fi.com/joechen');
+    expect(support).toHaveAttribute('target', '_blank');
+    expect(support).toHaveAttribute('rel', expect.stringContaining('noopener'));
+    expect(support).toHaveAttribute('rel', expect.stringContaining('noreferrer'));
+    const logo = support.querySelector('img');
+    expect(logo).toHaveAttribute('src', '/assets/ko-fi-logomark.webp');
+    expect(logo).toHaveAttribute('alt', '');
+  });
+
   it('shows accurate privacy, MIT license, TMDB policy, and safe official links', () => {
     render(<AboutPanel version="0.1.0" repositoryUrl={null} onCleared={vi.fn()} />);
 
@@ -60,6 +73,7 @@ describe('AboutPanel', () => {
     expect(screen.getByText(/Granted site access may remain/)).toBeInTheDocument();
     expect(screen.getByText(/TMDB content and trademarks belong/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'View MIT License' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Support the author' })).toBeInTheDocument();
     expect(document.querySelector('.about-panel')?.textContent).not.toMatch(/[㐀-鿿]/);
 
     await user.click(screen.getByRole('button', { name: 'Clear all PicTab data' }));

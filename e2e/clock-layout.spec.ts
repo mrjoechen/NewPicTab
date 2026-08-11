@@ -88,17 +88,24 @@ test('keeps every clock format on one visible line across responsive viewports',
             rects.push(range.getBoundingClientRect());
           }
         }
+        const clockRect = element.getBoundingClientRect();
+        const valueRect = element.querySelector('.clock-weather__time-value')?.getBoundingClientRect();
+        const dayPeriodRect = element.querySelector('.clock-weather__day-period')?.getBoundingClientRect();
         return {
           topSpread: Math.max(...rects.map((rect) => rect.top)) - Math.min(...rects.map((rect) => rect.top)),
-          left: Math.min(...rects.map((rect) => rect.left)),
-          right: Math.max(...rects.map((rect) => rect.right)),
-          viewportWidth: window.innerWidth
+          left: clockRect.left,
+          right: clockRect.right,
+          viewportWidth: window.innerWidth,
+          centerDelta: valueRect && dayPeriodRect
+            ? Math.abs((valueRect.top + valueRect.bottom - dayPeriodRect.top - dayPeriodRect.bottom) / 2)
+            : null
         };
       });
       const caseName = `${viewport.name}, ${format.hour12 ? '12' : '24'} hour, ${format.showSeconds ? 'seconds' : 'minutes'}`;
       expect(metrics.topSpread, `${caseName}: time wrapped`).toBeLessThanOrEqual(1);
       expect(metrics.left, `${caseName}: time overflowed left`).toBeGreaterThanOrEqual(0);
       expect(metrics.right, `${caseName}: time overflowed right`).toBeLessThanOrEqual(metrics.viewportWidth);
+      if (format.hour12) expect(metrics.centerDelta ?? Number.POSITIVE_INFINITY, `${caseName}: day period was not vertically centered`).toBeLessThanOrEqual(1);
     }
   }
 });

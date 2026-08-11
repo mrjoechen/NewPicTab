@@ -16,6 +16,7 @@ export type IconName =
   | 'eye'
   | 'eye-off'
   | 'folder'
+  | 'github'
   | 'globe'
   | 'image'
   | 'info'
@@ -60,6 +61,7 @@ function iconPath(name: IconName) {
     case 'eye': return <><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></>;
     case 'eye-off': return <><path d="m3 3 18 18" /><path d="M10.6 10.6a2.5 2.5 0 0 0 2.8 2.8" /><path d="M7.1 7.5C4.2 9.1 2.5 12 2.5 12s3.5 6 9.5 6c1.6 0 3-.4 4.2-1" /><path d="M13.8 6.2C18.6 7 21.5 12 21.5 12s-.8 1.3-2.2 2.7" /></>;
     case 'folder': return <><path d="M3.5 6.5h6l2 2h9v8.8a2.2 2.2 0 0 1-2.2 2.2H5.7a2.2 2.2 0 0 1-2.2-2.2V6.5Z" /><path d="M3.5 10.5h17" /></>;
+    case 'github': return <><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3.3-.4 6.8-1.6 6.8-7A5.4 5.4 0 0 0 19.4 4 5 5 0 0 0 19.3.5S18.2.1 15 1.8a13.4 13.4 0 0 0-7 0C4.8.1 3.7.5 3.7.5A5 5 0 0 0 3.6 4a5.4 5.4 0 0 0-1.4 3.7c0 5.4 3.5 6.6 6.8 7A4.8 4.8 0 0 0 8 18v4" /><path d="M8 19c-3 .9-3-1.5-4-2" /></>;
     case 'globe': return <><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3c2.2 2.5 3.2 5.5 3.2 9s-1 6.5-3.2 9c-2.2-2.5-3.2-5.5-3.2-9S9.8 5.5 12 3Z" /></>;
     case 'image': return <><rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="m6.5 16 4-4 3 3 2-2 3 3" /><circle cx="8" cy="9" r="1.2" /></>;
     case 'info': return <><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 8h.01" /></>;

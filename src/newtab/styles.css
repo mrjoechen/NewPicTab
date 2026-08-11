@@ -530,6 +530,7 @@ body {
   display: inline-flex;
   align-items: baseline;
   justify-content: center;
+  gap: 0.3em;
   font-size: clamp(var(--clock-time-min, 68px), var(--clock-time-fluid, 11vw), var(--clock-time-max, 154px));
   font-weight: 520;
   font-variant-numeric: tabular-nums;
@@ -538,8 +539,20 @@ body {
   white-space: nowrap;
 }
 
+.clock-weather__time-value {
+  display: inline-flex;
+  align-items: baseline;
+}
+
 .clock-weather__time-number {
   letter-spacing: -0.038em;
+}
+
+.clock-weather__day-period {
+  align-self: center;
+  font-size: 0.45em;
+  line-height: 1;
+  letter-spacing: 0.02em;
 }
 
 .clock-weather__time-separator {
@@ -819,6 +832,31 @@ textarea {
 .language-toggle:hover {
   color: #fff;
   background: rgb(255 255 255 / 0.06);
+}
+
+.github-link,
+.donation-link {
+  border: 0;
+  border-radius: 10px;
+  color: rgb(237 241 239 / 0.82);
+  background: transparent;
+  text-decoration: none;
+  transition: color 180ms ease, background 180ms ease;
+}
+
+.github-link { order: -2; }
+.donation-link { order: -3; }
+
+.github-link:hover,
+.donation-link:hover {
+  color: #fff;
+  background: rgb(255 255 255 / 0.06);
+}
+
+.donation-link__logo {
+  display: block;
+  width: auto;
+  height: 20px;
 }
 
 .drawer-header h1,
@@ -1948,6 +1986,8 @@ textarea {
 .tmdb-attribution__logo { display: block; width: 96px; height: auto; margin: 2px 0 12px; }
 .about-links { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 10px; }
 .about-links a { min-height: 44px; color: #dbe9e1; line-height: 44px; }
+.about-links .about-link--with-icon { display: inline-flex; align-items: center; gap: 7px; }
+.about-link__logo { display: block; width: auto; height: 18px; }
 .about-links span { color: rgb(237 241 239 / 0.46); }
 .about-danger { border-color: rgb(215 116 116 / 0.22); }
 .about-danger .button { margin-top: 14px; }

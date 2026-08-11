@@ -2,9 +2,17 @@
 
 [English](README.md) | 简体中文
 
-PicTab 是一个以图片为主角的极简 Chrome 新标签页扩展。你可以自由组合本地与远程图片源，并按需显示时间、日期、天气、搜索和快捷网址。
+PicTab 是一个以图片为主角的极简 Chrome 新标签页扩展。你可以为浏览器的 Tab 页面背景设置不同的图片源，并按需显示时间、日期、天气、搜索和快捷网址。
 
 > PicTab 采用 [MIT License](LICENSE) 开源，可自由使用、复制、修改和分发，包括商业用途；请保留版权与许可声明。
+
+<a href="https://ko-fi.com/joechen"><img src="https://img.shields.io/badge/ko--fi-Buy_me_a_coffee-ff5f5f?logo=ko-fi&style=for-the-badge" alt="ko-fi"></a>
+
+## 预览
+
+| 新标签页 | 配置页面 |
+| --- | --- |
+| ![显示时间、天气与搜索的 PicTab 新标签页](docs/assets/pictab-new-tab-preview.jpg) | ![显示图片源管理的 PicTab 配置页面](docs/assets/pictab-settings-preview.jpg) |
 
 ## 功能特色
 

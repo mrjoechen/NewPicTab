@@ -23,6 +23,8 @@ describe('search and shortcut layout guardrails', () => {
     expect(css).toMatch(/\.search-box__submit:hover\s*\{[^}]*background:\s*transparent;/s);
     expect(css).toMatch(/\.search-box__submit:hover::before\s*\{[^}]*background:\s*rgb\(255 255 255 \/ 0\.12\);/s);
     expect(css).toMatch(/\.range-field input\[type="range"\]\s*\{[^}]*min-height:\s*32px;[^}]*padding:\s*0;[^}]*border:\s*0;[^}]*background:\s*transparent;/s);
+    expect(css).toMatch(/\.clock-weather__time\s*\{[^}]*gap:\s*0\.3em;/s);
+    expect(css).toMatch(/\.clock-weather__day-period\s*\{[^}]*align-self:\s*center;[^}]*font-size:\s*0\.45em;/s);
     expect(css).toMatch(/\.clock-weather__time-separator\s*\{[^}]*margin:\s*0 0\.085em;/s);
     expect(css).toMatch(/\.clock-weather__date\s*\{[^}]*display:\s*flex;[^}]*gap:\s*0\.36em 0\.78em;/s);
     expect(css).toMatch(/\.clock-weather__time\s*\{[^}]*font-size:\s*clamp\(var\(--clock-time-min,\s*68px\),\s*var\(--clock-time-fluid,\s*11vw\),\s*var\(--clock-time-max,\s*154px\)\);[^}]*white-space:\s*nowrap;/s);

@@ -2,9 +2,17 @@
 
 English | [简体中文](README_ZH.md)
 
-PicTab is a minimal Chrome new-tab extension that keeps your images front and center. Mix local and remote image sources, then show only the clock, date, weather, search, and shortcuts you want.
+PicTab is a minimal Chrome new-tab extension that keeps your images front and center. You can choose a different image source as the background for the new tab, then show only the clock, date, weather, search, and shortcuts you want.
 
 > PicTab is open source under the [MIT License](LICENSE). You may use, copy, modify, and distribute it as long as the copyright and license notices are preserved.
+
+<a href="https://ko-fi.com/joechen"><img src="https://img.shields.io/badge/ko--fi-Buy_me_a_coffee-ff5f5f?logo=ko-fi&style=for-the-badge" alt="ko-fi"></a>
+
+## Preview
+
+| New tab | Settings |
+| --- | --- |
+| ![PicTab new tab with clock, weather, and search](docs/assets/pictab-new-tab-preview.jpg) | ![PicTab settings with image-source controls](docs/assets/pictab-settings-preview.jpg) |
 
 ## Features
 

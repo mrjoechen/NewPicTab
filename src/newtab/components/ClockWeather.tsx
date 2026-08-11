@@ -47,7 +47,7 @@ export function ClockWeather({ settings, weather, locale = 'zh-CN', backgroundIm
     return () => { active = false; };
   }, [backgroundImage?.id, backgroundImage?.sourceId, backgroundImage?.url, settings.clock.position]);
 
-  const time = useMemo(() => safeFormat(now, locale, {
+  const time = useMemo(() => safeFormatToParts(now, locale, {
     hour: 'numeric', minute: '2-digit', ...(settings.clock.showSeconds ? { second: '2-digit' } : {}), hour12: settings.clock.hour12
   }), [locale, now, settings.clock.hour12, settings.clock.showSeconds]);
   const date = useMemo(() => formatDateParts(now, settings.date.locale || locale, settings.date.format, settings.date.showLunar), [locale, now, settings.date.format, settings.date.locale, settings.date.showLunar]);
@@ -56,7 +56,7 @@ export function ClockWeather({ settings, weather, locale = 'zh-CN', backgroundIm
 
   if (!settings.clock.enabled && !settings.date.enabled && !(settings.weather.enabled && weather)) return null;
   return <section className="clock-weather" aria-label={locale === 'zh-CN' ? '时间与天气' : 'Time and weather'} data-size={settings.clock.size} data-position={settings.clock.position} data-search={String(settings.search.enabled)} data-shortcuts={String(settings.shortcuts.enabled)} data-tone={textTone} style={style}>
-    {settings.clock.enabled && <time className="clock-weather__time" data-hour12={String(settings.clock.hour12)} data-seconds={String(settings.clock.showSeconds)} data-testid="clock" dateTime={now.toISOString()}>{renderTimeParts(time)}</time>}
+    {settings.clock.enabled && <time className="clock-weather__time" data-hour12={String(settings.clock.hour12)} data-seconds={String(settings.clock.showSeconds)} data-testid="clock" dateTime={now.toISOString()} aria-label={time.map((part) => part.value).join('')}>{renderTimeParts(time)}</time>}
     {settings.date.enabled && <time className="clock-weather__date" data-testid="date" dateTime={dateOnly(now)} aria-label={date.join(' ')}>
       {date.map((part, index) => <span key={`${part}-${index}`} className="clock-weather__date-part">{part}</span>)}
     </time>}
@@ -100,6 +100,11 @@ function safeFormat(value: Date, locale: string, options: Intl.DateTimeFormatOpt
   catch { return new Intl.DateTimeFormat(undefined, options).format(value); }
 }
 
+function safeFormatToParts(value: Date, locale: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormatPart[] {
+  try { return new Intl.DateTimeFormat(locale || undefined, options).formatToParts(value); }
+  catch { return new Intl.DateTimeFormat(undefined, options).formatToParts(value); }
+}
+
 function formatDateParts(value: Date, locale: string, format: WidgetSettings['date']['format'], showLunar: boolean): string[] {
   const dateOptions: Intl.DateTimeFormatOptions = format === 'full'
     ? { year: 'numeric', month: 'long', day: 'numeric' }
@@ -111,11 +116,19 @@ function formatDateParts(value: Date, locale: string, format: WidgetSettings['da
   ].filter(Boolean);
 }
 
-function renderTimeParts(value: string) {
-  return value.split(/([:：])/).map((part, index) => {
-    const separator = part === ':' || part === '：';
-    return <span key={`${part}-${index}`} className={separator ? 'clock-weather__time-separator' : 'clock-weather__time-number'}>{part}</span>;
-  });
+function renderTimeParts(parts: Intl.DateTimeFormatPart[]) {
+  const visibleParts = parts.filter((part) => part.type !== 'literal' || part.value.trim());
+  const dayPeriodIndex = visibleParts.findIndex((part) => part.type === 'dayPeriod');
+  const dayPeriod = visibleParts[dayPeriodIndex];
+  const value = <span className="clock-weather__time-value">{visibleParts
+    .filter((part) => part.type !== 'dayPeriod')
+    .map((part, index) => {
+      const separator = part.type === 'literal' && (part.value === ':' || part.value === '：');
+      return <span key={`${part.type}-${part.value}-${index}`} className={separator ? 'clock-weather__time-separator' : 'clock-weather__time-number'}>{part.value}</span>;
+    })}</span>;
+  if (!dayPeriod) return value;
+  const label = <span className="clock-weather__day-period">{dayPeriod.value}</span>;
+  return dayPeriodIndex === 0 ? <>{label}{value}</> : <>{value}{label}</>;
 }
 
 function formatLunarDate(value: Date): string {

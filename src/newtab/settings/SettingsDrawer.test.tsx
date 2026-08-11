@@ -138,6 +138,31 @@ describe('SettingsDrawer', () => {
     expect(trigger).toHaveFocus();
   });
 
+  it('links to the public GitHub project from the settings header', async () => {
+    render(<SettingsDrawer settings={createDefaultSettings()} onUpdate={vi.fn()} onChangeImage={vi.fn()} />);
+    await userEvent.setup().click(screen.getByRole('button', { name: '打开设置' }));
+
+    const repository = screen.getByRole('link', { name: '打开 GitHub 项目' });
+    expect(repository).toHaveAttribute('href', 'https://github.com/mrjoechen/PicTab');
+    expect(repository).toHaveAttribute('target', '_blank');
+    expect(repository).toHaveAttribute('rel', expect.stringContaining('noopener'));
+    expect(repository).toHaveAttribute('rel', expect.stringContaining('noreferrer'));
+  });
+
+  it('links to Ko-fi from the settings header with the bundled logo', async () => {
+    render(<SettingsDrawer settings={createDefaultSettings()} onUpdate={vi.fn()} onChangeImage={vi.fn()} />);
+    await userEvent.setup().click(screen.getByRole('button', { name: '打开设置' }));
+
+    const donation = screen.getByRole('link', { name: '支持作者' });
+    expect(donation).toHaveAttribute('href', 'https://ko-fi.com/joechen');
+    expect(donation).toHaveAttribute('target', '_blank');
+    expect(donation).toHaveAttribute('rel', expect.stringContaining('noopener'));
+    expect(donation).toHaveAttribute('rel', expect.stringContaining('noreferrer'));
+    const logo = donation.querySelector('img');
+    expect(logo).toHaveAttribute('src', '/assets/ko-fi-logomark.webp');
+    expect(logo).toHaveAttribute('alt', '');
+  });
+
   it('offers complete navigation and real weather controls', async () => {
     const user = userEvent.setup();
     render(
@@ -184,6 +209,8 @@ describe('SettingsDrawer', () => {
     await user.click(screen.getByRole('button', { name: 'Open settings' }));
 
     expect(screen.getByRole('heading', { name: 'Sources' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open GitHub project' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Support the author' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Effect' }).querySelector('path')).toHaveAttribute('d', 'm4 20 11-11');
     expect(screen.getByRole('button', { name: 'Time and Date' })).toBeInTheDocument();
     expect(screen.getByText('No image sources yet')).toBeInTheDocument();
