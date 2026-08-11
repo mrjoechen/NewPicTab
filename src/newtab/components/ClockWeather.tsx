@@ -56,7 +56,7 @@ export function ClockWeather({ settings, weather, locale = 'zh-CN', backgroundIm
 
   if (!settings.clock.enabled && !settings.date.enabled && !(settings.weather.enabled && weather)) return null;
   return <section className="clock-weather" aria-label={locale === 'zh-CN' ? '时间与天气' : 'Time and weather'} data-size={settings.clock.size} data-position={settings.clock.position} data-search={String(settings.search.enabled)} data-shortcuts={String(settings.shortcuts.enabled)} data-tone={textTone} style={style}>
-    {settings.clock.enabled && <time className="clock-weather__time" data-testid="clock" dateTime={now.toISOString()}>{renderTimeParts(time)}</time>}
+    {settings.clock.enabled && <time className="clock-weather__time" data-hour12={String(settings.clock.hour12)} data-seconds={String(settings.clock.showSeconds)} data-testid="clock" dateTime={now.toISOString()}>{renderTimeParts(time)}</time>}
     {settings.date.enabled && <time className="clock-weather__date" data-testid="date" dateTime={dateOnly(now)} aria-label={date.join(' ')}>
       {date.map((part, index) => <span key={`${part}-${index}`} className="clock-weather__date-part">{part}</span>)}
     </time>}

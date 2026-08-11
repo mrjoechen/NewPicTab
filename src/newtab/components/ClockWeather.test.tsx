@@ -31,6 +31,8 @@ describe('ClockWeather', () => {
     const value = widgets(); value.clock.hour12 = true; value.clock.showSeconds = true; value.date.enabled = false;
     render(<ClockWeather settings={value} locale="en-US" />);
     expect(screen.getByTestId('clock')).toHaveTextContent(/1:05:06\s?PM/i);
+    expect(screen.getByTestId('clock')).toHaveAttribute('data-hour12', 'true');
+    expect(screen.getByTestId('clock')).toHaveAttribute('data-seconds', 'true');
     expect(screen.queryByTestId('date')).not.toBeInTheDocument();
     act(() => vi.advanceTimersByTime(1_000));
     expect(screen.getByTestId('clock')).toHaveTextContent(/1:05:07\s?PM/i);

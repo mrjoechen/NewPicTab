@@ -535,6 +535,7 @@ body {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
   line-height: 0.92;
+  white-space: nowrap;
 }
 
 .clock-weather__time-number {
@@ -545,6 +546,20 @@ body {
   margin: 0 0.085em;
   opacity: 0.88;
   transform: translateY(-0.035em);
+}
+
+@media (max-width: 640px) {
+  .clock-weather__time[data-seconds="true"] {
+    font-size: min(clamp(var(--clock-time-min, 68px), var(--clock-time-fluid, 11vw), var(--clock-time-max, 154px)), 21vw);
+  }
+
+  .clock-weather__time[data-hour12="true"] {
+    font-size: min(clamp(var(--clock-time-min, 68px), var(--clock-time-fluid, 11vw), var(--clock-time-max, 154px)), 19vw);
+  }
+
+  .clock-weather__time[data-hour12="true"][data-seconds="true"] {
+    font-size: min(clamp(var(--clock-time-min, 68px), var(--clock-time-fluid, 11vw), var(--clock-time-max, 154px)), 14vw);
+  }
 }
 
 .clock-weather__date {

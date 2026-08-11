@@ -25,7 +25,10 @@ describe('search and shortcut layout guardrails', () => {
     expect(css).toMatch(/\.range-field input\[type="range"\]\s*\{[^}]*min-height:\s*32px;[^}]*padding:\s*0;[^}]*border:\s*0;[^}]*background:\s*transparent;/s);
     expect(css).toMatch(/\.clock-weather__time-separator\s*\{[^}]*margin:\s*0 0\.085em;/s);
     expect(css).toMatch(/\.clock-weather__date\s*\{[^}]*display:\s*flex;[^}]*gap:\s*0\.36em 0\.78em;/s);
-    expect(css).toMatch(/\.clock-weather__time\s*\{[^}]*font-size:\s*clamp\(var\(--clock-time-min,\s*68px\),\s*var\(--clock-time-fluid,\s*11vw\),\s*var\(--clock-time-max,\s*154px\)\);/s);
+    expect(css).toMatch(/\.clock-weather__time\s*\{[^}]*font-size:\s*clamp\(var\(--clock-time-min,\s*68px\),\s*var\(--clock-time-fluid,\s*11vw\),\s*var\(--clock-time-max,\s*154px\)\);[^}]*white-space:\s*nowrap;/s);
+    expect(css).toMatch(/@media \(max-width:\s*640px\)[\s\S]*\.clock-weather__time\[data-seconds="true"\][^}]*font-size:\s*min\([^;]*21vw\);/s);
+    expect(css).toMatch(/@media \(max-width:\s*640px\)[\s\S]*\.clock-weather__time\[data-hour12="true"\][^}]*font-size:\s*min\([^;]*19vw\);/s);
+    expect(css).toMatch(/@media \(max-width:\s*640px\)[\s\S]*\.clock-weather__time\[data-hour12="true"\]\[data-seconds="true"\][^}]*font-size:\s*min\([^;]*14vw\);/s);
     expect(css).toMatch(/\.clock-weather__date\s*\{[^}]*font-size:\s*clamp\(var\(--clock-date-min,\s*18px\),\s*var\(--clock-date-fluid,\s*2vw\),\s*var\(--clock-date-max,\s*28px\)\);/s);
     expect(css).toMatch(/\.shortcut-dock\s*\{/);
     expect(css).toMatch(/\.settings-trigger\s*\{[^}]*right:\s*max\(16px,\s*env\(safe-area-inset-right\)\);/s);
