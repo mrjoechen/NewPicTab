@@ -6,10 +6,10 @@ Make it easy for PicTab users to see the extension, support the author, and reac
 
 ## Scope
 
-- Add a Ko-fi donation link to the About panel's “Source and license” link row.
+- Add a branded Ko-fi donation link to the About panel's “Source and license” link row.
 - Add a GitHub repository icon link to the settings drawer header.
-- Add a Ko-fi support link and two extension preview images to both `README.md` and `README_ZH.md`.
-- Add matching line icons to the existing shared `Icon` component.
+- Add a Ko-fi badge and two extension preview images to both `README.md` and `README_ZH.md`.
+- Add a GitHub line icon to the existing shared `Icon` component.
 
 No donation processing, embedded Ko-fi content, analytics, or new browser permissions are introduced.
 
@@ -17,7 +17,7 @@ No donation processing, embedded Ko-fi content, analytics, or new browser permis
 
 ### About panel
 
-Add a compact icon-and-text link labeled “支持作者” in Chinese and “Support the author” in English. It sits beside the existing license and source-repository links and uses the shared coffee icon. The destination is `https://ko-fi.com/joechen`.
+Add a compact icon-and-text link labeled “支持作者” in Chinese and “Support the author” in English. It sits beside the existing license and source-repository links and uses the supplied Ko-fi logomark from a bundled local WebP asset. The destination is `https://ko-fi.com/joechen`.
 
 ### Settings drawer
 
@@ -25,7 +25,13 @@ Add an icon-only GitHub repository link to the header action group, alongside th
 
 ### README files
 
-Add a short support link near the introductory project links in each README. The English text uses “Support PicTab on Ko-fi”; the Chinese text uses “在 Ko-fi 上支持 PicTab”. The link points to the same Ko-fi URL as the About panel.
+Add the same Ko-fi badge near the introductory project links in both README files. Use this HTML in each file:
+
+```html
+<a href="https://ko-fi.com/joechen"><img src="https://img.shields.io/badge/ko--fi-Buy_me_a_coffee-ff5f5f?logo=ko-fi&style=for-the-badge" alt="ko-fi"></a>
+```
+
+The corrected `style=for-the-badge` value follows Shields.io's supported static-badge style syntax. The badge links to the same Ko-fi URL as the About panel.
 
 Add a “Preview” section to `README.md` and a “预览” section to `README_ZH.md` after the introductory license note and before the feature list. Each section uses a two-column Markdown table to display the new-tab and settings screenshots side by side at equal rendered size, with language-appropriate captions and alt text.
 
@@ -44,6 +50,15 @@ Preserve all visible pixels, UI text, colors, and composition except for the min
 - Save them as `docs/assets/pictab-new-tab-preview.jpg` and `docs/assets/pictab-settings-preview.jpg`.
 - Keep the source files in Downloads unchanged.
 
+## Ko-fi Logo Asset
+
+Treat `/Users/eeo/Downloads/logomarkLogo2024.webp` as the source for the About-panel donation icon. It is a `161×130` WebP with transparency and is approximately 2 KB.
+
+- Copy it without resizing or re-encoding to `public/assets/ko-fi-logomark.webp`.
+- Render it at an 18-pixel CSS height with automatic width so its original aspect ratio is preserved.
+- Keep the source file in Downloads unchanged.
+- Do not load the About-panel icon from Ko-fi or another remote host.
+
 ## Security and Accessibility
 
 - Browser UI links open in a new tab with `target="_blank"` and `rel="noopener noreferrer"`.
@@ -52,23 +67,25 @@ Preserve all visible pixels, UI text, colors, and composition except for the min
 - Decorative SVGs remain hidden from assistive technology; the link text or accessible name supplies meaning.
 - Existing 44-pixel link/control hit-area conventions remain in effect.
 - README preview images have descriptive, localized alt text and are stored in the repository rather than loaded from an external host.
+- The About-panel Ko-fi image is decorative (`alt=""`) because the adjacent localized link text supplies its accessible name.
 
 ## Implementation Boundaries
 
-- Extend `IconName` and `iconPath` with `coffee` and `github`; do not add image assets or third-party packages.
+- Extend `IconName` and `iconPath` with `github`; remove the interim `coffee` icon after the Ko-fi logomark replaces it.
 - Reuse `PROJECT_REPOSITORY_URL` for the settings header link to avoid duplicating the repository address.
 - Keep the Ko-fi URL as a single About-panel constant and mirror the same stable URL in Markdown documentation.
-- Limit styling changes to the new icon-and-text About link and settings-header anchor behavior, preserving existing controls and unrelated user edits in `styles.css`.
+- Limit styling changes to the Ko-fi icon-and-text About link and settings-header anchor behavior, preserving existing controls and unrelated user edits in `styles.css`.
 - Treat the resized preview images as documentation assets; do not add them to the extension bundle or runtime manifest.
 
 ## Testing
 
-- Update `AboutPanel.test.tsx` first and confirm it fails because the support link is absent; assert the accessible label, exact Ko-fi URL, new-tab target, and safe relation.
+- Update `AboutPanel.test.tsx` first and confirm it fails because the bundled Ko-fi logomark is absent; retain assertions for the accessible label, exact Ko-fi URL, new-tab target, and safe relation, and assert the image source and empty alt text.
 - Update `SettingsDrawer.test.tsx` first and confirm it fails because the GitHub header link is absent; assert its accessible name, repository URL, new-tab target, and safe relation.
 - Implement only enough component, icon, localization, and style changes to make the tests pass.
 - Run the focused tests, then the full test suite and production build.
-- Check both README files for the exact Ko-fi URL and language-appropriate labels.
+- Check both README files for the exact corrected Ko-fi badge HTML.
 - Verify both saved preview assets are JPEG files with exact `1200×640` dimensions and that both README files reference both assets.
+- Verify `public/assets/ko-fi-logomark.webp` remains a `161×130` WebP with an alpha channel.
 
 ## Delivery
 
