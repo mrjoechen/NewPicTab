@@ -43,16 +43,14 @@ PicTab 是一个以图片为主角的极简 Chrome 新标签页扩展。你可�
 
 ## 安装
 
-<!--
-Chrome Web Store 徽章使用说明：
-1. 将 CHROME_WEB_STORE_URL 替换为 PicTab 正式商店页面链接。
-2. 仅在 PicTab 已上架后移除此注释外层并显示徽章。
-<a href="CHROME_WEB_STORE_URL">
+### Chrome Web Store 安装
+
+<a href="https://chromewebstore.google.com/detail/pictab/mampdaiecflbeocbhaefoncpagmdaopp?utm_source=item-share-cb">
   <img src="docs/assets/chrome-web-store-badge.png" alt="Chrome 应用商店提供" width="170">
 </a>
--->
 
-### 从 Release 下载
+
+### 从 Release 手动下载
 
 1. 打开 [Releases 页面](https://github.com/mrjoechen/PicTab/releases)。
 2. 下载最新版本的 zip 发布包。

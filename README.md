@@ -45,14 +45,12 @@ PicTab is a minimal Chrome new-tab extension that keeps your images front and ce
 
 ## Installation
 
-<!--
-Chrome Web Store badge requirements:
-1. Replace CHROME_WEB_STORE_URL with the live PicTab listing URL.
-2. Remove this comment wrapper only after PicTab is available in the store.
-<a href="CHROME_WEB_STORE_URL">
+### Install from Chrome Web Store
+
+<a href="https://chromewebstore.google.com/detail/pictab/mampdaiecflbeocbhaefoncpagmdaopp?utm_source=item-share-cb">
   <img src="docs/assets/chrome-web-store-badge.png" alt="Available in the Chrome Web Store" width="170">
 </a>
--->
+
 
 ### Download from Releases
 
