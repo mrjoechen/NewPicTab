@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import type { InterfaceLanguage, PicTabSettings } from '../../domain/types';
+import type { InterfaceLanguage, NewPicTabSettings } from '../../domain/types';
 import { AppearancePanel } from './AppearancePanel';
 import { SourcesPanel, type SettingsUpdater, type SourceLoadState, type SourceOperations } from './SourcesPanel';
 import { isolateModalBackground } from '../../lib/modalIsolation';
@@ -15,7 +15,7 @@ import { LanguageProvider, useDocumentLocalization } from '../i18n';
 type PanelName = 'sources' | 'appearance' | 'time' | 'weather' | 'search' | 'shortcuts' | 'about';
 
 export interface SettingsDrawerProps {
-  settings: PicTabSettings;
+  settings: NewPicTabSettings;
   onUpdate: SettingsUpdater;
   onChangeImage: () => void | Promise<void>;
   operations?: SourceOperations;
@@ -27,7 +27,7 @@ export interface SettingsDrawerProps {
   openSourcesRequest?: number;
   onOpen?: () => void;
   onClockScalePreview?: (scale: number | null) => void;
-  onDataCleared?: (settings: PicTabSettings) => void;
+  onDataCleared?: (settings: NewPicTabSettings) => void;
 }
 
 const NAVIGATION: { id: PanelName; icon: IconName; label: Record<InterfaceLanguage, string> }[] = [
@@ -100,7 +100,7 @@ export function SettingsDrawer({ settings, onUpdate, onChangeImage, operations =
     <button ref={triggerRef} className="settings-trigger icon-button" type="button" aria-label={labels.open} title={labels.open} onClick={() => { onOpen(); setOpen(true); }}><Icon name="settings" /></button>
     {open && <div className="drawer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
       <div ref={dialogRef} className="settings-drawer" role="dialog" aria-modal="true" aria-labelledby="settings-title">
-        <header className="drawer-header"><div><p className="settings-eyebrow">PicTab</p><h1 id="settings-title">{labels.title}</h1></div><div className="drawer-header__actions"><button ref={closeRef} className="drawer-close icon-button" type="button" aria-label={labels.close} title={labels.close} onClick={() => setOpen(false)}><Icon name="close" /></button><button className="language-toggle icon-button" type="button" aria-label={labels.language} title={labels.language} onClick={() => { const interfaceLanguage: InterfaceLanguage = language === 'zh-CN' ? 'en-US' : 'zh-CN'; void onUpdate((current) => ({ ...current, interfaceLanguage })); }}><Icon name="language" /></button><a className="github-link icon-button" href={PROJECT_REPOSITORY_URL} target="_blank" rel="noopener noreferrer" aria-label={labels.repository} title={labels.repository}><Icon name="github" /></a><a className="donation-link icon-button" href={PROJECT_DONATION_URL} target="_blank" rel="noopener noreferrer" aria-label={labels.donation} title={labels.donation}><img className="donation-link__logo" src="/assets/ko-fi-logomark.webp" alt="" /></a></div></header>
+        <header className="drawer-header"><div><p className="settings-eyebrow">NewPicTab</p><h1 id="settings-title">{labels.title}</h1></div><div className="drawer-header__actions"><button ref={closeRef} className="drawer-close icon-button" type="button" aria-label={labels.close} title={labels.close} onClick={() => setOpen(false)}><Icon name="close" /></button><button className="language-toggle icon-button" type="button" aria-label={labels.language} title={labels.language} onClick={() => { const interfaceLanguage: InterfaceLanguage = language === 'zh-CN' ? 'en-US' : 'zh-CN'; void onUpdate((current) => ({ ...current, interfaceLanguage })); }}><Icon name="language" /></button><a className="github-link icon-button" href={PROJECT_REPOSITORY_URL} target="_blank" rel="noopener noreferrer" aria-label={labels.repository} title={labels.repository}><Icon name="github" /></a><a className="donation-link icon-button" href={PROJECT_DONATION_URL} target="_blank" rel="noopener noreferrer" aria-label={labels.donation} title={labels.donation}><img className="donation-link__logo" src="/assets/ko-fi-logomark.webp" alt="" /></a></div></header>
         <nav className="drawer-nav drawer-nav--labeled" aria-label={labels.nav}>{NAVIGATION.map((item) => {
           const active = panel === item.id;
           return <button key={item.id} type="button" className={active ? 'is-active' : ''} aria-label={item.label[language]} title={item.label[language]} aria-current={active ? 'page' : undefined} onClick={() => setPanel(item.id)}><Icon name={item.icon} />{active && <span>{item.label[language]}</span>}</button>;

@@ -15,7 +15,7 @@ let page: Page;
 let temporaryRoot: string;
 
 test.beforeAll(async () => {
-  temporaryRoot = await mkdtemp(path.join(tmpdir(), 'pictab-clock-e2e-'));
+  temporaryRoot = await mkdtemp(path.join(tmpdir(), 'newpictab-clock-e2e-'));
   const profilePath = path.join(temporaryRoot, 'profile');
   context = await chromium.launchPersistentContext(profilePath, {
     channel: 'chromium',
@@ -113,5 +113,5 @@ test('keeps every clock format on one visible line across responsive viewports',
 async function seedClock(clock: { hour12: boolean; showSeconds: boolean; scale: number }): Promise<void> {
   const settings = createDefaultSettings();
   Object.assign(settings.widgets.clock, clock, { size: 'large', position: 'center' });
-  await page.evaluate(async (value) => chrome.storage.local.set({ pictab: value }), settings);
+  await page.evaluate(async (value) => chrome.storage.local.set({ newpictab: value }), settings);
 }

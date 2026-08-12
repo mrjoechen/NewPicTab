@@ -181,8 +181,8 @@ describe('OpenMeteoService', () => {
 
   it('serializes cache mutations across instances so overlapping locations are preserved', async () => {
     let stored: Record<string, unknown> = {};
-    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ 'pictab-weather-cache-v1': stored }));
-    vi.mocked(chrome.storage.local.set).mockImplementation(async (value) => { stored = (value as Record<string, unknown>)['pictab-weather-cache-v1'] as Record<string, unknown>; });
+    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ 'newpictab-weather-cache-v1': stored }));
+    vi.mocked(chrome.storage.local.set).mockImplementation(async (value) => { stored = (value as Record<string, unknown>)['newpictab-weather-cache-v1'] as Record<string, unknown>; });
     const first = new ChromeWeatherCache(); const second = new ChromeWeatherCache();
     const a = { location: '上海', temperature: 20, temperatureUnit: '°C', weatherCode: 0, isDay: true, fetchedAt: 1, stale: false };
     const b = { location: '北京', temperature: 10, temperatureUnit: '°C', weatherCode: 2, isDay: true, fetchedAt: 2, stale: false };

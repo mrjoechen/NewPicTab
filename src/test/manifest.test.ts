@@ -25,7 +25,7 @@ describe('extension manifest', () => {
     expect(manifest.default_locale).toBe('en');
     for (const locale of ['en', 'zh_CN']) {
       const messages = JSON.parse(readFileSync(resolve(process.cwd(), `public/_locales/${locale}/messages.json`), 'utf8')) as Record<string, { message?: string }>;
-      expect(messages.extensionName?.message).toBe('PicTab');
+      expect(messages.extensionName?.message).toBe('NewPicTab');
       expect(messages.extensionDescription?.message).toBeTruthy();
     }
   });

@@ -31,8 +31,8 @@ describe('search helpers', () => {
   });
 
   it('replaces the custom placeholder exactly once after validation', () => {
-    expect(buildSearchUrl({ enabled: true, engine: 'custom', customTemplate: 'https://search.example/find?q={query}&from=pictab' }, 'a/b'))
-      .toBe('https://search.example/find?q=a%2Fb&from=pictab');
+    expect(buildSearchUrl({ enabled: true, engine: 'custom', customTemplate: 'https://search.example/find?q={query}&from=newpictab' }, 'a/b'))
+      .toBe('https://search.example/find?q=a%2Fb&from=newpictab');
   });
 });
 

@@ -1,8 +1,8 @@
 {
   "extensionName": {
-    "message": "PicTab"
+    "message": "NewPicTab"
   },
   "extensionDescription": {
-    "message": "A minimal new tab page powered by local, WebDAV, direct URL, JSON API, or TMDB images."
+    "message": "Make your new tab page visually appealing. Support building new tab pages with local, WebDAV, or TMDB images."
   }
 }

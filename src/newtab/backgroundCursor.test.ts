@@ -77,7 +77,7 @@ describe('Chrome rotation cursor store', () => {
       vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({}));
       vi.mocked(chrome.storage.local.set).mockResolvedValue();
       await createChromeRotationCursorStore().claim('scope', ['one']);
-      expect(request).toHaveBeenCalledWith('pictab-auxiliary-storage', { mode: 'shared' }, expect.any(Function));
+      expect(request).toHaveBeenCalledWith('newpictab-auxiliary-storage', { mode: 'shared' }, expect.any(Function));
     } finally { Object.defineProperty(navigator, 'locks', { configurable: true, value: original }); }
   });
 });

@@ -88,71 +88,71 @@ body {
 }
 
 .background-stage[data-transition="fade"] .background-stage__layer--current {
-  animation: pictab-fade-in var(--background-transition-ms) cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: newpictab-fade-in var(--background-transition-ms) cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .background-stage[data-transition="fade"] .background-stage__layer--previous {
-  animation: pictab-fade-out var(--background-transition-ms) cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: newpictab-fade-out var(--background-transition-ms) cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .background-stage[data-transition="slide"][data-direction="next"] .background-stage__layer--current {
-  animation: pictab-slide-in-next var(--background-transition-ms) cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: newpictab-slide-in-next var(--background-transition-ms) cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .background-stage[data-transition="slide"][data-direction="next"] .background-stage__layer--previous {
-  animation: pictab-slide-out-next var(--background-transition-ms) cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: newpictab-slide-out-next var(--background-transition-ms) cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .background-stage[data-transition="slide"][data-direction="previous"] .background-stage__layer--current {
-  animation: pictab-slide-in-previous var(--background-transition-ms) cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: newpictab-slide-in-previous var(--background-transition-ms) cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .background-stage[data-transition="slide"][data-direction="previous"] .background-stage__layer--previous {
-  animation: pictab-slide-out-previous var(--background-transition-ms) cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: newpictab-slide-out-previous var(--background-transition-ms) cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .background-stage[data-transition="ken-burns"][data-display-motion="ken-burns"] .background-stage__layer--current {
   will-change: transform;
   animation:
-    pictab-fade-in var(--background-transition-ms) cubic-bezier(0.16, 1, 0.3, 1) both,
-    pictab-ken-burns-display var(--background-display-ms) ease-in-out infinite alternate;
+    newpictab-fade-in var(--background-transition-ms) cubic-bezier(0.16, 1, 0.3, 1) both,
+    newpictab-ken-burns-display var(--background-display-ms) ease-in-out infinite alternate;
 }
 
 .background-stage[data-transition="ken-burns"] .background-stage__layer--previous {
-  animation: pictab-fade-out var(--background-transition-ms) cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: newpictab-fade-out var(--background-transition-ms) cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-@keyframes pictab-fade-in {
+@keyframes newpictab-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-@keyframes pictab-fade-out {
+@keyframes newpictab-fade-out {
   from { opacity: 1; }
   to { opacity: 0; }
 }
 
-@keyframes pictab-slide-in-next {
+@keyframes newpictab-slide-in-next {
   from { opacity: 0; transform: translate3d(8%, 0, 0) scale(1.035); }
   to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
-@keyframes pictab-slide-out-next {
+@keyframes newpictab-slide-out-next {
   from { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
   to { opacity: 0; transform: translate3d(-8%, 0, 0) scale(1.025); }
 }
 
-@keyframes pictab-slide-in-previous {
+@keyframes newpictab-slide-in-previous {
   from { opacity: 0; transform: translate3d(-8%, 0, 0) scale(1.035); }
   to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
-@keyframes pictab-slide-out-previous {
+@keyframes newpictab-slide-out-previous {
   from { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
   to { opacity: 0; transform: translate3d(8%, 0, 0) scale(1.025); }
 }
 
-@keyframes pictab-ken-burns-display {
+@keyframes newpictab-ken-burns-display {
   from { transform: translate3d(-1.4%, -0.8%, 0) scale(1.025); }
   to { transform: translate3d(1.4%, 0.9%, 0) scale(1.095); }
 }
@@ -721,7 +721,7 @@ textarea {
   width: 20px;
   height: 20px;
   filter: drop-shadow(0 2px 8px rgb(0 0 0 / 0.32));
-  animation: pictab-loading-spin 1s linear infinite;
+  animation: newpictab-loading-spin 1s linear infinite;
 }
 
 .background-loading__spinner span {
@@ -734,7 +734,7 @@ textarea {
   border-radius: 999px;
   background: linear-gradient(180deg, rgb(255 255 255 / 0.96), rgb(255 255 255 / 0.18));
   transform-origin: 1px 8px;
-  animation: pictab-loading-pulse 1s ease-in-out infinite;
+  animation: newpictab-loading-pulse 1s ease-in-out infinite;
 }
 
 .background-loading__spinner span:nth-child(1) { animation-delay: -0.92s; opacity: 0.18; transform: rotate(0deg); }
@@ -754,11 +754,11 @@ textarea {
   transform: rotate(330deg);
 }
 
-@keyframes pictab-loading-spin {
+@keyframes newpictab-loading-spin {
   to { transform: rotate(360deg); }
 }
 
-@keyframes pictab-loading-pulse {
+@keyframes newpictab-loading-pulse {
   0%, 100% { opacity: 0.22; }
   45% { opacity: 1; }
 }
@@ -1927,7 +1927,7 @@ textarea {
   border: 2px solid rgb(237 241 239 / 0.18);
   border-top-color: rgb(237 241 239 / 0.78);
   border-radius: 999px;
-  animation: pictab-loading-spin 0.8s linear infinite;
+  animation: newpictab-loading-spin 0.8s linear infinite;
 }
 
 .source-preview__loading {

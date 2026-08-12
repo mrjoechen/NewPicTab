@@ -1,4 +1,4 @@
-const DATABASE_NAME = 'pictab';
+const DATABASE_NAME = 'newpictab';
 const DATABASE_VERSION = 2;
 const LOCAL_IMAGES_STORE = 'localImages';
 const SOURCE_METADATA_STORE = 'sourceMetadata';

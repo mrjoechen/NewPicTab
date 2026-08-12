@@ -6,7 +6,7 @@ import { createDefaultSettings } from '../domain/defaults';
 import { LocalSourceAdapter } from '../sources/local';
 import { listLocal, listPendingLocalImports, markPendingLocalImport, putLocal } from '../storage/imageDb';
 import { createSourceOperations, listSource, RemoteCacheSession, sendBackgroundRequest } from './sourceClient';
-import { clearAllPicTabData } from './dataClear';
+import { clearAllNewPicTabData } from './dataClear';
 
 const direct: DirectSourceConfig = { id: 'remote', name: 'Remote', type: 'direct', enabled: true, createdAt: 1, updatedAt: 1, entries: [{ id: 'one', url: 'https://images.example/one.jpg' }] };
 const local: LocalSourceConfig = { id: 'local', name: 'Local', type: 'local', enabled: true, createdAt: 1, updatedAt: 1, includeSubdirectories: false };
@@ -83,7 +83,7 @@ describe('new-tab source client', () => {
     const blob = new Blob(['committed'], { type: 'image/png' });
     await putLocal({ sourceId: committed.id, id: 'one', name: 'one.png', type: blob.type, size: blob.size, blob, createdAt: 1 });
     await markPendingLocalImport(committed.id);
-    localStorageGet.mockResolvedValue({ pictab: { sources: [committed], activeSourceId: committed.id } });
+    localStorageGet.mockResolvedValue({ newpictab: { sources: [committed], activeSourceId: committed.id } });
 
     const operations = createSourceOperations(new LocalSourceAdapter());
     await operations.recoverLocalImports?.();
@@ -96,7 +96,7 @@ describe('new-tab source client', () => {
     const removed = { ...local, id: 'pending-deletion' };
     const blob = new Blob(['removed'], { type: 'image/png' });
     await putLocal({ sourceId: removed.id, id: 'one', name: 'one.png', type: blob.type, size: blob.size, blob, createdAt: 1 });
-    localStorageGet.mockResolvedValue({ pictab: { sources: [], activeSourceId: null } });
+    localStorageGet.mockResolvedValue({ newpictab: { sources: [], activeSourceId: null } });
     const failing = new LocalSourceAdapter({}, { listLocal, putLocal, deleteSource: vi.fn(async () => { throw new Error('private delete failure'); }) });
     const firstOperations = createSourceOperations(failing);
 
@@ -112,7 +112,7 @@ describe('new-tab source client', () => {
     const restoreLocks = installExclusiveLockManager();
     const pending = { ...local, id: 'cross-tab-commit' };
     let durableSources: LocalSourceConfig[] = [];
-    localStorageGet.mockImplementation(async () => ({ pictab: { sources: durableSources, activeSourceId: durableSources[0]?.id ?? null } }));
+    localStorageGet.mockImplementation(async () => ({ newpictab: { sources: durableSources, activeSourceId: durableSources[0]?.id ?? null } }));
     try {
       const tabA = createSourceOperations(new LocalSourceAdapter());
       await tabA.importLocal(pending.id, [new File(['valid'], 'valid.jpg', { type: 'image/jpeg' })], { uncommitted: true });
@@ -142,7 +142,7 @@ describe('new-tab source client', () => {
     try {
       await operations.importLocal(pending.id, [new File(['pending'], 'pending.jpg', { type: 'image/jpeg' })], { uncommitted: true });
       let completed = false;
-      const clearing = clearAllPicTabData().then((result) => { completed = true; return result; });
+      const clearing = clearAllNewPicTabData().then((result) => { completed = true; return result; });
       let clearedBeforeLeaseRelease = false;
       try {
         await vi.waitFor(() => expect(completed).toBe(true), { timeout: 300 });
@@ -172,7 +172,7 @@ describe('new-tab source client', () => {
       const materializing = session.materialize([{ id: 'one', sourceId: 'remote', remoteCacheEntryId: 'one', remoteCacheFingerprint: 'fingerprint' }]);
       await getEntered;
       let clearCompleted = false;
-      const clearing = clearAllPicTabData({
+      const clearing = clearAllNewPicTabData({
         clearSettings: async () => createDefaultSettings(),
         clearLocal: async () => undefined,
         clearWorker: async () => { metadata.splice(0); return { ok: true }; }
@@ -191,7 +191,7 @@ describe('new-tab source client', () => {
   it('lets a waiting tab recover an orphan only after the importing tab crashes and releases its lease', async () => {
     const restoreLocks = installExclusiveLockManager();
     const pending = { ...local, id: 'cross-tab-crash' };
-    localStorageGet.mockResolvedValue({ pictab: { sources: [], activeSourceId: null } });
+    localStorageGet.mockResolvedValue({ newpictab: { sources: [], activeSourceId: null } });
     try {
       const tabA = createSourceOperations(new LocalSourceAdapter());
       await tabA.importLocal(pending.id, [new File(['orphan'], 'orphan.jpg', { type: 'image/jpeg' })], { uncommitted: true });
@@ -211,7 +211,7 @@ describe('new-tab source client', () => {
     const restoreLocks = installExclusiveLockManager();
     const deleting = { ...local, id: 'cross-tab-delete' };
     const importing = { ...local, id: 'cross-tab-existing-import' };
-    localStorageGet.mockResolvedValue({ pictab: { sources: [deleting, importing], activeSourceId: deleting.id } });
+    localStorageGet.mockResolvedValue({ newpictab: { sources: [deleting, importing], activeSourceId: deleting.id } });
     let finishSettings!: () => void;
     const settingsPending = new Promise<void>((resolve) => { finishSettings = resolve; });
     try {

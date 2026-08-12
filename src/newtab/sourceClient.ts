@@ -8,7 +8,7 @@ import { RemoteCache } from '../storage/remoteCache';
 import { clearPendingLocalImport, deleteLocal, listLocal, listPendingLocalCleanups, markPendingLocalDeletion, markPendingLocalImport, reorderLocal } from '../storage/imageDb';
 import { loadInsideDataMaintenance as loadSettings } from '../storage/settingsStore';
 import type { SourceOperations, TmdbMetadataResult } from './settings/SourcesPanel';
-import { withPicTabDataMutationLock } from '../storage/maintenance';
+import { withNewPicTabDataMutationLock } from '../storage/maintenance';
 import { withChromeCallbackDeadline } from '../lib/chromeCallback';
 
 export const RUNTIME_MESSAGE_CALLBACK_DEADLINE_MS = 30_000;
@@ -30,7 +30,7 @@ export async function listSource(source: SourceConfig, localAdapter: LocalSource
   return { ok: false, images: [], error: { code: failureCode(response), message: failureMessage(response) } };
 }
 
-const LOCAL_MAINTENANCE_LOCK = 'pictab-local-source-maintenance';
+const LOCAL_MAINTENANCE_LOCK = 'newpictab-local-source-maintenance';
 let fallbackLocalLockTail: Promise<void> = Promise.resolve();
 
 async function acquireExtensionLocalLock(): Promise<() => void> {
@@ -58,7 +58,7 @@ async function acquireExtensionLocalLock(): Promise<() => void> {
 }
 
 export async function withLocalMaintenanceLock<T>(operation: () => Promise<T>, options: { insideDataMaintenance?: boolean } = {}): Promise<T> {
-  if (!options.insideDataMaintenance) return withPicTabDataMutationLock(() => withLocalMaintenanceLock(operation, { insideDataMaintenance: true }));
+  if (!options.insideDataMaintenance) return withNewPicTabDataMutationLock(() => withLocalMaintenanceLock(operation, { insideDataMaintenance: true }));
   const release = await acquireExtensionLocalLock();
   try { return await operation(); } finally { release(); }
 }
@@ -104,7 +104,7 @@ export function createSourceOperations(localAdapter: LocalSourceAdapter): Source
       if (uncommittedLeases.has(sourceId)) throw new Error('本地导入仍在等待保存。');
       let release: (() => void) | undefined;
       try {
-        const result = await withPicTabDataMutationLock(async () => {
+        const result = await withNewPicTabDataMutationLock(async () => {
           release = await acquireExtensionLocalLock();
           await recoverPendingLocalImports();
           await markPendingLocalImport(sourceId);
@@ -194,7 +194,7 @@ export class RemoteCacheSession {
   ) { this.cache = cache; }
 
   async materialize(entries: readonly ImageEntry[]): Promise<RemoteCacheLease> {
-    return withPicTabDataMutationLock(() => this.materializeInsideDataMaintenance(entries));
+    return withNewPicTabDataMutationLock(() => this.materializeInsideDataMaintenance(entries));
   }
 
   private async materializeInsideDataMaintenance(entries: readonly ImageEntry[]): Promise<RemoteCacheLease> {

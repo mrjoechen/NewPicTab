@@ -57,7 +57,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          archive="pictab-${RELEASE_TAG}.zip"
+          archive="newpictab-${RELEASE_TAG}.zip"
           npm run package:chrome-store -- \
             --source dist \
             --output "$archive" \
@@ -69,7 +69,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          archive="pictab-${RELEASE_TAG}.zip"
+          archive="newpictab-${RELEASE_TAG}.zip"
           if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" \
               "$archive" \
@@ -81,5 +81,5 @@ jobs:
               "${archive}.sha256" \
               --verify-tag \
               --generate-notes \
-              --title "PicTab ${RELEASE_TAG}"
+              --title "NewPicTab ${RELEASE_TAG}"
           fi

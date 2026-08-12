@@ -1,8 +1,8 @@
 export const DEFAULT_REMOTE_CACHE_BYTES = 250 * 1024 * 1024;
 /** 16 MiB keeps MV3 service-worker peak memory reasonable while streaming remote images. */
 export const DEFAULT_REMOTE_IMAGE_BYTES = 16 * 1024 * 1024;
-const CACHE_NAME = 'pictab-remote-images-v1';
-export const REMOTE_CACHE_LOCK = 'pictab-remote-cache-storage';
+const CACHE_NAME = 'newpictab-remote-images-v1';
+export const REMOTE_CACHE_LOCK = 'newpictab-remote-cache-storage';
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
 export type CacheableRemoteSourceType = 'direct' | 'json-api' | 'webdav' | 'tmdb';
 /** @deprecated Use CacheableRemoteSourceType. */
@@ -37,7 +37,7 @@ export class RemoteCache {
   }
   static canCacheSourceType(type: string): type is CacheableRemoteSourceType { return type === 'direct' || type === 'json-api' || type === 'webdav' || type === 'tmdb'; }
   /** SHA-256 of the complete identifiers: cache URLs carry no reversible source or credential material. */
-  static async keyFor(sourceId: string, entryId: string, fingerprint = ''): Promise<string> { return `https://cache.pictab.invalid/${await sha256(JSON.stringify([sourceId, fingerprint, entryId]))}`; }
+  static async keyFor(sourceId: string, entryId: string, fingerprint = ''): Promise<string> { return `https://cache.newpictab.invalid/${await sha256(JSON.stringify([sourceId, fingerprint, entryId]))}`; }
 
   async put(sourceId: string, entryId: string, response: Response, sourceType: CacheableRemoteSourceType, entry?: ImageEntry, protectedEntryIds: readonly string[] = [], fingerprint = ''): Promise<PutResult> {
     try {
@@ -160,7 +160,7 @@ export class RemoteCache {
     if (!bytesRemoved || !metadataRemoved) this.reconciled = false;
     return false;
   }
-  private async keyFor(sourceId: string, entryId: string, fingerprint = ''): Promise<string> { return `https://cache.pictab.invalid/${await this.digest(JSON.stringify([sourceId, fingerprint, entryId]))}`; }
+  private async keyFor(sourceId: string, entryId: string, fingerprint = ''): Promise<string> { return `https://cache.newpictab.invalid/${await this.digest(JSON.stringify([sourceId, fingerprint, entryId]))}`; }
   private async serial<T>(operation: () => Promise<T>): Promise<T> {
     const run = () => {
       const locks = globalThis.navigator?.locks;
@@ -230,7 +230,7 @@ class BrowserCacheBackend implements CacheBackend {
   async keys(): Promise<string[]> { return (await this.target()).keys().then((requests) => requests.map((request) => request.url)); }
 }
 export class IndexedDbMetadataRepository implements CacheMetadataRepository {
-  private readonly db = new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('pictab-remote-cache', 1); request.onupgradeneeded = () => request.result.createObjectStore('metadata', { keyPath: 'cacheKey' }); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+  private readonly db = new Promise<IDBDatabase>((resolve, reject) => { const request = indexedDB.open('newpictab-remote-cache', 1); request.onupgradeneeded = () => request.result.createObjectStore('metadata', { keyPath: 'cacheKey' }); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
   async get(key: string): Promise<RemoteCacheMetadata | undefined> { return this.request('readonly', (store) => store.get(key)); }
   async put(value: RemoteCacheMetadata): Promise<void> { await this.request('readwrite', (store) => store.put(value)); }
   async delete(key: string): Promise<void> { await this.request('readwrite', (store) => store.delete(key)); }

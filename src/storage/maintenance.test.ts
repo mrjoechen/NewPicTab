@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DATA_CLEAR_MARKER_KEY, DATA_MAINTENANCE_LOCK, PicTabDataClearingError, withPicTabDataClearLock, withPicTabDataMutationLock } from './maintenance';
+import { DATA_CLEAR_MARKER_KEY, DATA_MAINTENANCE_LOCK, NewPicTabDataClearingError, withNewPicTabDataClearLock, withNewPicTabDataMutationLock } from './maintenance';
 
 const originalLocks = navigator.locks;
 
@@ -30,13 +30,13 @@ describe('extension-wide data maintenance', () => {
     let enteredClear!: () => void;
     const clearEntered = new Promise<void>((resolve) => { enteredClear = resolve; });
 
-    const clearing = withPicTabDataClearLock(async () => { enteredClear(); await holdClear; });
+    const clearing = withNewPicTabDataClearLock(async () => { enteredClear(); await holdClear; });
     await clearEntered;
     const mutation = vi.fn(async () => undefined);
-    const queuedWrite = withPicTabDataMutationLock(mutation);
+    const queuedWrite = withNewPicTabDataMutationLock(mutation);
     releaseClear();
 
-    await expect(queuedWrite).rejects.toBeInstanceOf(PicTabDataClearingError);
+    await expect(queuedWrite).rejects.toBeInstanceOf(NewPicTabDataClearingError);
     await clearing;
     expect(mutation).not.toHaveBeenCalled();
     expect(values).not.toHaveProperty(DATA_CLEAR_MARKER_KEY);
@@ -46,7 +46,7 @@ describe('extension-wide data maintenance', () => {
 
   it('always removes the marker when clear work fails', async () => {
     Object.defineProperty(navigator, 'locks', { configurable: true, value: undefined });
-    await expect(withPicTabDataClearLock(async () => { throw new Error('failure'); })).rejects.toThrow('failure');
+    await expect(withNewPicTabDataClearLock(async () => { throw new Error('failure'); })).rejects.toThrow('failure');
     expect(values).not.toHaveProperty(DATA_CLEAR_MARKER_KEY);
   });
 
@@ -63,18 +63,18 @@ describe('extension-wide data maintenance', () => {
     const secondHold = new Promise<void>((resolve) => { releaseSecond = resolve; });
     const secondEntered = new Promise<void>((resolve) => { enterSecond = resolve; });
 
-    const first = withPicTabDataClearLock(() => firstHold);
+    const first = withNewPicTabDataClearLock(() => firstHold);
     await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(1));
-    const second = withPicTabDataClearLock(async () => { enterSecond(); await secondHold; });
+    const second = withNewPicTabDataClearLock(async () => { enterSecond(); await secondHold; });
     releaseFirst();
     await secondEntered;
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
     expect(values).toHaveProperty(DATA_CLEAR_MARKER_KEY);
 
     const mutation = vi.fn(async () => undefined);
-    const queuedWrite = withPicTabDataMutationLock(mutation);
+    const queuedWrite = withNewPicTabDataMutationLock(mutation);
     releaseSecond();
-    await expect(queuedWrite).rejects.toBeInstanceOf(PicTabDataClearingError);
+    await expect(queuedWrite).rejects.toBeInstanceOf(NewPicTabDataClearingError);
     await Promise.all([first, second]);
     expect(mutation).not.toHaveBeenCalled();
   });

@@ -8,7 +8,7 @@ export interface RotationCursorStore {
   updateLatest(scope: string, imageId: string): Promise<void>;
 }
 
-const CURSOR_PREFIX = 'pictab-background-cursor:';
+const CURSOR_PREFIX = 'newpictab-background-cursor:';
 const fallbackQueues = new Map<string, Promise<void>>();
 
 function storageKey(scope: string): string {

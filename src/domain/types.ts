@@ -26,7 +26,7 @@ export interface WebDavSourceConfig extends SourceBase {
   /** Safe decoded folder names relative to url. */
   folderPath?: string[];
   username: string;
-  /** Local-only secret. PicTab settings are never written to storage.sync. */
+  /** Local-only secret. NewPicTab settings are never written to storage.sync. */
   password: string;
   includeSubdirectories: boolean;
 }
@@ -146,7 +146,7 @@ export interface Shortcut {
   customIcon?: string;
 }
 
-export interface PicTabSettings {
+export interface NewPicTabSettings {
   version: 1;
   interfaceLanguage: InterfaceLanguage;
   activeSourceId: string | null;

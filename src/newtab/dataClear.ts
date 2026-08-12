@@ -1,17 +1,17 @@
-import type { PicTabSettings } from '../domain/types';
+import type { NewPicTabSettings } from '../domain/types';
 import { clearAllLocalData } from '../storage/imageDb';
 import * as settingsStore from '../storage/settingsStore';
 import type { BackgroundResponse } from '../background/messages';
 import { sendBackgroundRequest } from './sourceClient';
-import { withPicTabDataClearLock } from '../storage/maintenance';
+import { withNewPicTabDataClearLock } from '../storage/maintenance';
 
 export interface DataClearDependencies {
-  clearSettings: () => Promise<PicTabSettings>;
+  clearSettings: () => Promise<NewPicTabSettings>;
   clearLocal: () => Promise<void>;
   clearWorker: () => Promise<BackgroundResponse>;
 }
 
-export type DataClearResult = { ok: true; settings: PicTabSettings } | { ok: false; failures: string[] };
+export type DataClearResult = { ok: true; settings: NewPicTabSettings } | { ok: false; failures: string[] };
 
 const DEFAULT_DEPENDENCIES: DataClearDependencies = {
   clearSettings: settingsStore.clearInsideDataMaintenance,
@@ -23,11 +23,11 @@ const DEFAULT_DEPENDENCIES: DataClearDependencies = {
 const SAFE_WORKER_FAILURES = new Set(['source adapters', 'remote image cache', 'remote image catalog', 'weather cache', 'browser journals and cursors']);
 
 /** Clears independent storage backends without ever propagating sensitive exception text. */
-export async function clearAllPicTabData(dependencies: DataClearDependencies = DEFAULT_DEPENDENCIES): Promise<DataClearResult> {
-  return withPicTabDataClearLock(() => clearAllPicTabDataInsideLock(dependencies));
+export async function clearAllNewPicTabData(dependencies: DataClearDependencies = DEFAULT_DEPENDENCIES): Promise<DataClearResult> {
+  return withNewPicTabDataClearLock(() => clearAllNewPicTabDataInsideLock(dependencies));
 }
 
-async function clearAllPicTabDataInsideLock(dependencies: DataClearDependencies): Promise<DataClearResult> {
+async function clearAllNewPicTabDataInsideLock(dependencies: DataClearDependencies): Promise<DataClearResult> {
   const [settingsResult, localResult, workerResult] = await Promise.allSettled([
     dependencies.clearSettings(),
     dependencies.clearLocal(),

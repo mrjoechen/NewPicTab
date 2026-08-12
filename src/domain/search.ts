@@ -13,7 +13,7 @@ export function validateSearchTemplate(template: string): string | null {
   if (CONTROL_CHARACTERS.test(template) || ENCODED_CONTROL_CHARACTERS.test(template)) return '模板不能包含控制字符。';
   if (template.split('{query}').length !== 2) return '模板必须包含且只能包含一个 {query}。';
   let parsed: URL;
-  try { parsed = new URL(template.replace('{query}', 'pictab-query')); }
+  try { parsed = new URL(template.replace('{query}', 'newpictab-query')); }
   catch { return '请输入有效的搜索模板。'; }
   if (parsed.protocol !== 'https:') return '模板必须使用 HTTPS。';
   if (parsed.username || parsed.password) return '模板不能包含用户名或密码。';

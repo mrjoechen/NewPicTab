@@ -30,7 +30,7 @@ describe('App', () => {
   it('never includes source credentials or private URLs in rotation cursor storage', async () => {
     const source = { id: 'dav-safe-scope', name: 'Private DAV', type: 'webdav' as const, enabled: true, createdAt: 1, updatedAt: 42, url: 'https://dav.example/private-album', username: 'ada', password: 'super-secret-password', includeSubdirectories: true };
     const settings = { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] };
-    vi.mocked(chrome.storage.local.get).mockImplementation(async (key) => key === 'pictab' ? { pictab: settings } : { [key as string]: undefined });
+    vi.mocked(chrome.storage.local.get).mockImplementation(async (key) => key === 'newpictab' ? { newpictab: settings } : { [key as string]: undefined });
     vi.mocked(chrome.runtime.sendMessage).mockImplementation(((_message: unknown, callback: (value: unknown) => void) => callback({ ok: true, images: [{ id: 'one', sourceId: source.id, url: 'blob:cached-image' }], totalCount: 1, offset: 0, consumedCount: 1, nextOffset: 1, hasMore: false })) as typeof chrome.runtime.sendMessage);
     const claim = vi.spyOn(chromeRotationCursorStore, 'claim');
     class DecodedImage { src = ''; decode = vi.fn(async () => undefined); addEventListener = vi.fn(); removeEventListener = vi.fn(); }
@@ -39,7 +39,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(claim.mock.calls.some(([scope]) => scope.includes(source.id))).toBe(true));
-    const cursorWrites = vi.mocked(chrome.storage.local.set).mock.calls.flatMap(([items]) => Object.entries(items).filter(([key]) => key.startsWith('pictab-background-cursor:')));
+    const cursorWrites = vi.mocked(chrome.storage.local.set).mock.calls.flatMap(([items]) => Object.entries(items).filter(([key]) => key.startsWith('newpictab-background-cursor:')));
     expect(cursorWrites.length).toBeGreaterThan(0);
     const serialized = JSON.stringify(cursorWrites);
     expect(serialized).not.toContain(source.password);
@@ -53,7 +53,7 @@ describe('App', () => {
     settings.widgets.search = { enabled: true, engine: 'duckduckgo' };
     settings.widgets.shortcuts.enabled = true;
     settings.shortcuts = [{ id: 'docs', title: 'Docs', url: 'https://docs.example/' }];
-    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ pictab: settings }));
+    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ newpictab: settings }));
 
     render(<App />);
 
@@ -66,12 +66,12 @@ describe('App', () => {
     const settings = createDefaultSettings(); settings.interfaceLanguage = 'en-US';
     settings.widgets.shortcuts.enabled = true;
     settings.shortcuts = [{ id: 'docs', title: 'Docs', url: 'https://docs.example/' }];
-    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ pictab: settings }));
+    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ newpictab: settings }));
 
     render(<App />);
 
     expect(await screen.findByRole('button', { name: 'Open settings' })).toBeInTheDocument();
-    expect(await screen.findByRole('complementary', { name: 'Get started with PicTab' })).toBeInTheDocument();
+    expect(await screen.findByRole('complementary', { name: 'Get started with NewPicTab' })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Shortcuts' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open Docs' })).toBeInTheDocument();
     expect(document.documentElement).toHaveAttribute('lang', 'en-US');
@@ -80,7 +80,7 @@ describe('App', () => {
   it('renders an accessible fallback and connects new-tab rotation to local persistence', async () => {
     render(<App />);
 
-    expect(screen.getByRole('heading', { name: 'PicTab' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'NewPicTab' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'A calm gradient background' })).toHaveAttribute(
       'src',
       '/assets/fallback.svg'
@@ -93,7 +93,7 @@ describe('App', () => {
   it('shows the first-run invitation only after settings load and opens Sources without covering the resting page with a modal', async () => {
     render(<App />);
 
-    const invitation = await screen.findByRole('complementary', { name: '开始使用 PicTab' });
+    const invitation = await screen.findByRole('complementary', { name: '开始使用 NewPicTab' });
     expect(invitation).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '添加图片源' }));
@@ -103,19 +103,19 @@ describe('App', () => {
 
   it('does not show first-run for an existing disabled source', async () => {
     const disabled = { id: 'disabled', name: 'Disabled', type: 'direct' as const, enabled: false, createdAt: 1, updatedAt: 1, entries: [{ id: 'one', url: 'https://images.example/one.jpg' }] };
-    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ pictab: { ...createDefaultSettings(), sources: [disabled], activeSourceId: null } }));
+    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ newpictab: { ...createDefaultSettings(), sources: [disabled], activeSourceId: null } }));
     render(<App />);
 
     await waitFor(() => expect(screen.getByRole('button', { name: '打开设置' })).toBeInTheDocument());
     await waitFor(() => expect(chrome.storage.local.get).toHaveBeenCalled());
-    expect(screen.queryByRole('complementary', { name: '开始使用 PicTab' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('complementary', { name: '开始使用 NewPicTab' })).not.toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'A calm gradient background' })).toBeInTheDocument();
   });
 
   it('loads an active source through the worker and binds persisted appearance to the stage', async () => {
     const source = { id: 'remote', name: 'Remote', type: 'direct' as const, enabled: true, createdAt: 1, updatedAt: 1, entries: [{ id: 'one', url: 'https://images.example/one.jpg' }] };
     const settings = { ...createDefaultSettings(), activeSourceId: source.id, sources: [source], appearance: { ...createDefaultSettings().appearance, transition: 'slide' as const } };
-    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ pictab: settings }));
+    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ newpictab: settings }));
     vi.mocked(chrome.runtime.sendMessage).mockImplementation(((_message: unknown, callback: (value: unknown) => void) => callback({ ok: true, images: [{ id: 'one', sourceId: source.id, url: source.entries[0].url }], totalCount: 1, offset: 0, consumedCount: 1, nextOffset: 1, hasMore: false })) as typeof chrome.runtime.sendMessage);
     class DecodedImage { src = ''; decode = vi.fn(async () => undefined); addEventListener = vi.fn(); removeEventListener = vi.fn(); }
     vi.stubGlobal('Image', DecodedImage);
@@ -148,7 +148,7 @@ describe('App', () => {
 
     expect(assigned).not.toContain('/assets/fallback.svg');
     expect(screen.getByTestId('background-current').style.backgroundImage).not.toContain('/assets/fallback.svg');
-    resolveSettings({ pictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } });
+    resolveSettings({ newpictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } });
   });
 
   it('does not let a slower initial load overwrite a newer storage subscription value', async () => {
@@ -160,10 +160,10 @@ describe('App', () => {
     };
     render(<App />);
     const newer = { ...createDefaultSettings(), appearance: { ...createDefaultSettings().appearance, transition: 'slide' as const } };
-    listener({ pictab: { newValue: newer } }, 'local');
+    listener({ newpictab: { newValue: newer } }, 'local');
     await waitFor(() => expect(screen.getByTestId('background-stage')).toHaveAttribute('data-transition', 'slide'));
 
-    resolveLoad({ pictab: createDefaultSettings() });
+    resolveLoad({ newpictab: createDefaultSettings() });
 
     await Promise.resolve();
     expect(screen.getByTestId('background-stage')).toHaveAttribute('data-transition', 'slide');
@@ -174,7 +174,7 @@ describe('App', () => {
     (chrome.storage as unknown as { onChanged: unknown }).onChanged = { addListener: vi.fn((value) => { listener = value; }), removeListener: vi.fn(), hasListener: vi.fn() };
     const shanghai = createDefaultSettings();
     shanghai.widgets.weather = { enabled: true, mode: 'city', city: '上海', latitude: 31.2, longitude: 121.4, animated: false };
-    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ pictab: shanghai }));
+    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ newpictab: shanghai }));
     vi.mocked(chrome.runtime.sendMessage).mockImplementation(((message: { weather?: string; location?: string }, callback: (value: unknown) => void) => {
       if (message.weather === 'current' && message.location === '上海') callback({ ok: true, weather: { location: '上海', temperature: 22, temperatureUnit: '°C', weatherCode: 0, isDay: true, fetchedAt: 1, stale: false } });
       else callback({ ok: false, code: 'network', message: 'offline' });
@@ -183,14 +183,14 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByTestId('weather')).toHaveTextContent('上海'));
 
     const beijing = structuredClone(shanghai); beijing.widgets.weather = { ...beijing.widgets.weather, city: '北京', latitude: 39.9, longitude: 116.4 };
-    listener({ pictab: { newValue: beijing } }, 'local');
+    listener({ newpictab: { newValue: beijing } }, 'local');
 
     await waitFor(() => expect(screen.queryByTestId('weather')).not.toBeInTheDocument());
   });
 
   it('loads remote metadata in overlapping windows without skipping 10 or 11 and reaches the final image', async () => {
     const source = { id: 'windowed', name: 'Windowed', type: 'direct' as const, enabled: true, createdAt: 1, updatedAt: 1, entries: [] };
-    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ pictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source], appearance: { ...createDefaultSettings().appearance, order: 'sequential' as const } } }));
+    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ newpictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source], appearance: { ...createDefaultSettings().appearance, order: 'sequential' as const } } }));
     vi.mocked(chrome.runtime.sendMessage).mockImplementation(((message: { source: string; offset?: number; cacheOnly?: boolean }, callback: (value: unknown) => void) => {
       if (message.cacheOnly) { callback({ ok: false, images: [], error: { code: 'empty', message: 'none' } }); return; }
       const offset = message.offset ?? 0; const totalCount = 25; const images = Array.from({ length: Math.min(12, totalCount - offset) }, (_, index) => ({ id: String(offset + index), sourceId: source.id, url: `https://images.example/${offset + index}.jpg` }));
@@ -211,7 +211,7 @@ describe('App', () => {
 
   it('uses the worker metadata cursor rather than the number of displayable images for the next request', async () => {
     const source = { id: 'partial', name: 'Partial', type: 'direct' as const, enabled: true, createdAt: 1, updatedAt: 1, entries: [] };
-    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ pictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } }));
+    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ newpictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } }));
     vi.mocked(chrome.runtime.sendMessage).mockImplementation(((message: { offset?: number; cacheOnly?: boolean }, callback: (value: unknown) => void) => {
       if (message.cacheOnly) { callback({ ok: false, images: [], error: { code: 'empty', message: 'none' } }); return; }
       const offset = message.offset ?? 0;
@@ -247,7 +247,7 @@ describe('App', () => {
     const b = { id: 'b', name: 'B', type: 'direct' as const, enabled: true, createdAt: 1, updatedAt: 1, entries: [] };
     let listener!: (changes: Record<string, { newValue?: unknown }>, area: string) => void;
     (chrome.storage as unknown as { onChanged: unknown }).onChanged = { addListener: vi.fn((value) => { listener = value; }), removeListener: vi.fn(), hasListener: vi.fn() };
-    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ pictab: { ...createDefaultSettings(), activeSourceId: a.id, sources: [a, b] } }));
+    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ newpictab: { ...createDefaultSettings(), activeSourceId: a.id, sources: [a, b] } }));
     let resolveBCache!: (value: unknown) => void;
     vi.mocked(chrome.runtime.sendMessage).mockImplementation(((message: { config: { id: string }; cacheOnly?: boolean }, callback: (value: unknown) => void) => {
       if (message.config.id === 'a') { callback(message.cacheOnly ? { ok: false, images: [], error: { code: 'empty', message: 'none' } } : { ok: true, images: [{ id: 'a1', sourceId: 'a', url: 'https://a.example/one.jpg' }], totalCount: 1, offset: 0, consumedCount: 1, nextOffset: 1, hasMore: false }); return; }
@@ -256,7 +256,7 @@ describe('App', () => {
     }) as typeof chrome.runtime.sendMessage);
     class DecodedImage { src = ''; decode = vi.fn(async () => undefined); addEventListener = vi.fn(); removeEventListener = vi.fn(); } vi.stubGlobal('Image', DecodedImage);
     render(<StrictMode><App /></StrictMode>); await waitFor(() => expect(screen.getByTestId('background-current').style.backgroundImage).toContain('a.example'));
-    listener({ pictab: { newValue: { ...createDefaultSettings(), activeSourceId: b.id, sources: [a, b] } } }, 'local');
+    listener({ newpictab: { newValue: { ...createDefaultSettings(), activeSourceId: b.id, sources: [a, b] } } }, 'local');
 
     await waitFor(() => expect(screen.getByRole('status', { name: '正在准备图片' })).toBeInTheDocument());
     expect(screen.getByTestId('background-current').style.backgroundImage).toContain('a.example');
@@ -271,7 +271,7 @@ describe('App', () => {
     const source = { id: 'visible-source', name: 'Visible', type: 'direct' as const, enabled: true, createdAt: 1, updatedAt: 1, entries: [] };
     let listener!: (changes: Record<string, { newValue?: unknown }>, area: string) => void;
     (chrome.storage as unknown as { onChanged: unknown }).onChanged = { addListener: vi.fn((value) => { listener = value; }), removeListener: vi.fn(), hasListener: vi.fn() };
-    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ pictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } }));
+    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ newpictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } }));
     let hangAfterInitialLoad = false;
     vi.mocked(chrome.runtime.sendMessage).mockImplementation(((message: { cacheOnly?: boolean }, callback: (value: unknown) => void) => {
       if (message.cacheOnly) { callback({ ok: false, images: [], error: { code: 'empty', message: 'none' } }); return; }
@@ -283,7 +283,7 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByTestId('background-current')).toHaveAttribute('data-source-id', source.id));
 
     hangAfterInitialLoad = true;
-    listener({ pictab: { newValue: { ...createDefaultSettings(), activeSourceId: source.id, sources: [{ ...source, updatedAt: 2 }] } } }, 'local');
+    listener({ newpictab: { newValue: { ...createDefaultSettings(), activeSourceId: source.id, sources: [{ ...source, updatedAt: 2 }] } } }, 'local');
     await waitFor(() => expect(screen.getByTestId('background-current')).toHaveAttribute('data-source-id', source.id));
 
     expect(screen.queryByRole('status', { name: '正在准备图片' })).not.toBeInTheDocument();
@@ -292,7 +292,7 @@ describe('App', () => {
 
   it('rejects a remote success response that omits the metadata cursor protocol', async () => {
     const source = { id: 'protocol', name: 'Protocol', type: 'direct' as const, enabled: true, createdAt: 1, updatedAt: 1, entries: [] };
-    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ pictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } }));
+    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ newpictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } }));
     vi.mocked(chrome.runtime.sendMessage).mockImplementation(((message: { cacheOnly?: boolean }, callback: (value: unknown) => void) => {
       callback(message.cacheOnly
         ? { ok: false, images: [], error: { code: 'empty', message: 'none' } }
@@ -308,7 +308,7 @@ describe('App', () => {
 
   it('keeps a cache-only blob alive until current and previous migrate to the network lease', async () => {
     const source = { id: 'blob-source', name: 'Blob', type: 'direct' as const, enabled: true, createdAt: 1, updatedAt: 1, entries: [] };
-    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ pictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } }));
+    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ newpictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } }));
     let resolveNetwork!: () => void;
     const networkReady = new Promise<void>((resolve) => { resolveNetwork = resolve; });
     vi.mocked(chrome.runtime.sendMessage).mockImplementation(((message: { cacheOnly?: boolean }, callback: (value: unknown) => void) => {
@@ -345,7 +345,7 @@ describe('App', () => {
 
   it('invalidates and revokes a delayed materialization after unmount', async () => {
     const source = { id: 'late-source', name: 'Late', type: 'direct' as const, enabled: true, createdAt: 1, updatedAt: 1, entries: [] };
-    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ pictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } }));
+    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ newpictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } }));
     vi.mocked(chrome.runtime.sendMessage).mockImplementation(((message: { cacheOnly?: boolean }, callback: (value: unknown) => void) => {
       callback({ ok: true, images: [{ id: 'late', sourceId: source.id, remoteCacheEntryId: 'late' }], totalCount: 1, offset: 0, consumedCount: 1, nextOffset: 1, hasMore: false });
     }) as typeof chrome.runtime.sendMessage);
@@ -367,7 +367,7 @@ describe('App', () => {
 
   it('invalidates and revokes a delayed materialization when a newer refresh starts', async () => {
     const source = { id: 'refresh-source', name: 'Refresh', type: 'direct' as const, enabled: true, createdAt: 1, updatedAt: 1, entries: [{ id: 'one', url: 'https://images.example/one.jpg' }] };
-    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ pictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } }));
+    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ newpictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } }));
     vi.mocked(chrome.permissions.request).mockImplementation(((_permissions: chrome.permissions.Permissions, callback?: (granted: boolean) => void) => { callback?.(true); }) as typeof chrome.permissions.request);
     let listCount = 0;
     vi.mocked(chrome.runtime.sendMessage).mockImplementation(((message: { source: string; cacheOnly?: boolean }, callback: (value: unknown) => void) => {
@@ -405,7 +405,7 @@ describe('App', () => {
 
   it('rejects contradictory complete cursor metadata without appending or retrying', async () => {
     const source = { id: 'contradictory', name: 'Contradictory', type: 'direct' as const, enabled: true, createdAt: 1, updatedAt: 1, entries: [] };
-    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ pictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } }));
+    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ newpictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } }));
     vi.mocked(chrome.runtime.sendMessage).mockImplementation(((message: { cacheOnly?: boolean }, callback: (value: unknown) => void) => {
       callback(message.cacheOnly
         ? { ok: false, images: [], error: { code: 'empty', message: 'none' } }
@@ -428,7 +428,7 @@ describe('App', () => {
     (chrome.storage as unknown as { onChanged: unknown }).onChanged = { addListener: vi.fn((value) => { listener = value; }), removeListener: vi.fn(), hasListener: vi.fn() };
     const defaults = createDefaultSettings();
     const sequentialSettings = { ...defaults, activeSourceId: a.id, sources: [a, b], appearance: { ...defaults.appearance, order: 'sequential' as const } };
-    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ pictab: sequentialSettings }));
+    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ newpictab: sequentialSettings }));
     let finishACache!: () => void;
     let finishBNext!: () => void;
     let bCacheOnlyCalls = 0;
@@ -456,7 +456,7 @@ describe('App', () => {
     render(<App />);
     await waitFor(() => expect(finishACache).toBeTypeOf('function'));
 
-    listener({ pictab: { newValue: { ...sequentialSettings, activeSourceId: b.id } } }, 'local');
+    listener({ newpictab: { newValue: { ...sequentialSettings, activeSourceId: b.id } } }, 'local');
     await waitFor(() => expect(screen.getByTestId('background-current').style.backgroundImage).toMatch(/\/b[0-2]\.jpg/));
     expect(bCacheOnlyCalls).toBe(1);
     await waitFor(() => expect(bNextCalls).toBe(1));

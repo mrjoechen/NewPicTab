@@ -10,7 +10,7 @@ import { sourceConfigFingerprint } from '../domain/sourceFingerprint';
 import { IndexedDbCatalogRepository, isPersistableCatalog, type CatalogRecord, type CatalogRepository } from '../storage/catalogRepository';
 import { OpenMeteoService, WeatherServiceError, reverseGeocodeLocation } from '../weather/openMeteo';
 import { getAllLocal, removeLocal } from '../lib/chrome';
-import { AUXILIARY_STORAGE_MAINTENANCE_LOCK, withPicTabDataMutationLock } from '../storage/maintenance';
+import { AUXILIARY_STORAGE_MAINTENANCE_LOCK, withNewPicTabDataMutationLock } from '../storage/maintenance';
 import { boundedRemoteText } from '../sources/text';
 
 type RemoteSourceType = Exclude<SourceType, 'local'>;
@@ -60,7 +60,7 @@ export function createDispatcher(options: DispatcherOptions = {}): (message: unk
       if (!allowed(sender)) return failure('permission', 'Messages must originate from this extension.');
       if (!isBackgroundRequest(message)) return failure('validation', 'Invalid background request.');
       if ('system' in message) {
-        if (clearingAllData) return failure('unknown', 'PicTab data clearing is already in progress.');
+        if (clearingAllData) return failure('unknown', 'NewPicTab data clearing is already in progress.');
         clearingAllData = true;
         cacheEpoch += 1;
         metadataLists.clear();
@@ -77,11 +77,11 @@ export function createDispatcher(options: DispatcherOptions = {}): (message: unk
           ];
           const settled = await Promise.allSettled(tasks.map(({ run }) => run()));
           const failures = settled.flatMap((result, index) => result.status === 'rejected' ? [tasks[index]!.name] : []);
-          return failures.length ? { ok: false, code: 'unknown', message: 'Some PicTab data could not be cleared.', failures } : { ok: true };
+          return failures.length ? { ok: false, code: 'unknown', message: 'Some NewPicTab data could not be cleared.', failures } : { ok: true };
         } finally { clearingAllData = false; }
       }
-      return await withPicTabDataMutationLock(async () => {
-      if (clearingAllData) return failure('unknown', 'PicTab data clearing is in progress.');
+      return await withNewPicTabDataMutationLock(async () => {
+      if (clearingAllData) return failure('unknown', 'NewPicTab data clearing is in progress.');
       if ('weather' in message) return safeClone(await (options.weatherHandler ? options.weatherHandler(message) : handleWeatherRequest(weatherService, reverseGeocode, message)));
       if (message.source === 'clear-cache') {
         cacheEpoch += 1;
@@ -471,7 +471,7 @@ async function handleWeatherRequest(service: Pick<OpenMeteoService, 'searchCitie
 async function clearAuxiliaryStorage(): Promise<void> {
   const clear = async () => {
     const values = await getAllLocal();
-    const keys = Object.keys(values).filter((key) => key.startsWith('pictab-background-cursor:') || key === 'pictab-first-run-dismissed-v1');
+    const keys = Object.keys(values).filter((key) => key.startsWith('newpictab-background-cursor:') || key === 'newpictab-first-run-dismissed-v1');
     const results = await Promise.allSettled(keys.map((key) => removeLocal(key)));
     if (results.some((result) => result.status === 'rejected')) throw new Error('Auxiliary storage cleanup failed.');
   };

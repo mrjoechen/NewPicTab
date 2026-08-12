@@ -18,7 +18,7 @@ describe('AboutPanel', () => {
   it('shows the intended public repository and the bundled approved TMDB logo by default', () => {
     render(<AboutPanel version="0.1.0" onCleared={vi.fn()} />);
 
-    expect(screen.getByRole('link', { name: '源码仓库' })).toHaveAttribute('href', 'https://github.com/mrjoechen/PicTab');
+    expect(screen.getByRole('link', { name: '源码仓库' })).toHaveAttribute('href', 'https://github.com/mrjoechen/NewPicTab');
     expect(screen.getByRole('img', { name: 'TMDB' })).toHaveAttribute('src', '/assets/tmdb-blue-short.svg');
     expect(screen.getByRole('link', { name: 'TMDB 标识与归因规范' })).toHaveAttribute('href', 'https://www.themoviedb.org/about/logos-attribution');
   });
@@ -39,9 +39,9 @@ describe('AboutPanel', () => {
   it('shows accurate privacy, MIT license, TMDB policy, and safe official links', () => {
     render(<AboutPanel version="0.1.0" repositoryUrl={null} onCleared={vi.fn()} />);
 
-    expect(screen.getByText('PicTab 0.1.0')).toBeInTheDocument();
+    expect(screen.getByText('NewPicTab 0.1.0')).toBeInTheDocument();
     expect(screen.getByText(/不包含统计、遥测或跟踪/)).toBeInTheDocument();
-    expect(screen.getByText(/持久化配置不会上传到 PicTab 基础设施/)).toBeInTheDocument();
+    expect(screen.getByText(/持久化配置不会上传到 NewPicTab 基础设施/)).toBeInTheDocument();
     expect(screen.getByText(/城市或坐标发送给 Open-Meteo/)).toBeInTheDocument();
     expect(screen.getByText(/搜索引擎图标随扩展内置；只有提交搜索后才会把查询交给所选搜索引擎/)).toBeInTheDocument();
     expect(screen.getByText(/JSON API 会把配置的请求头发送给 API endpoint，并从你授权的图片主机或 CDN 下载图片/)).toBeInTheDocument();
@@ -76,8 +76,8 @@ describe('AboutPanel', () => {
     expect(screen.getByRole('link', { name: 'Support the author' })).toBeInTheDocument();
     expect(document.querySelector('.about-panel')?.textContent).not.toMatch(/[㐀-鿿]/);
 
-    await user.click(screen.getByRole('button', { name: 'Clear all PicTab data' }));
-    const dialog = screen.getByRole('alertdialog', { name: 'Clear all PicTab data' });
+    await user.click(screen.getByRole('button', { name: 'Clear all NewPicTab data' }));
+    const dialog = screen.getByRole('alertdialog', { name: 'Clear all NewPicTab data' });
     expect(within(dialog).getByText('Local images')).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Confirm clear' }));
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Weather cache and Some local data');
@@ -87,9 +87,9 @@ describe('AboutPanel', () => {
   it('requires an explicit accessible confirmation, supports Escape, and restores trigger focus', async () => {
     render(<AboutPanel version="0.1.0" repositoryUrl={null} onCleared={vi.fn()} />);
     const user = userEvent.setup();
-    const trigger = screen.getByRole('button', { name: '清除所有 PicTab 数据' });
+    const trigger = screen.getByRole('button', { name: '清除所有 NewPicTab 数据' });
     await user.click(trigger);
-    const dialog = screen.getByRole('alertdialog', { name: '清除所有 PicTab 数据' });
+    const dialog = screen.getByRole('alertdialog', { name: '清除所有 NewPicTab 数据' });
     for (const label of ['设置与凭据', '本地图片', '远程图片缓存与目录', '天气缓存', '切换游标与清理日志']) expect(within(dialog).getByText(label)).toBeInTheDocument();
     expect(within(dialog).getByText(/不会删除 WebDAV 或 TMDB 上的远端内容/)).toBeInTheDocument();
 
@@ -105,7 +105,7 @@ describe('AboutPanel', () => {
     const onCleared = vi.fn();
     render(<AboutPanel version="0.1.0" repositoryUrl={null} clearData={clear} onCleared={onCleared} />);
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: '清除所有 PicTab 数据' }));
+    await user.click(screen.getByRole('button', { name: '清除所有 NewPicTab 数据' }));
     await user.click(screen.getByRole('button', { name: '确认清除' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('天气缓存');
     expect(document.body.textContent).not.toContain('private');

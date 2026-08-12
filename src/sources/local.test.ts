@@ -14,7 +14,7 @@ const source: LocalSourceConfig = {
 
 async function removeDatabase(): Promise<void> {
   await new Promise<void>((resolve, reject) => {
-    const request = indexedDB.deleteDatabase('pictab');
+    const request = indexedDB.deleteDatabase('newpictab');
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
     request.onblocked = () => reject(new Error('test database remained open'));

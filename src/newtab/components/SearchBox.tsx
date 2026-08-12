@@ -54,10 +54,10 @@ export function SearchBox({ settings, language = 'zh-CN', navigate = assignLocat
     onSubmit={submit}
     onBlur={(event) => { if (!formRef.current?.contains(event.relatedTarget)) setEngineMenuOpen(false); }}
   >
-    <label className="visually-hidden" htmlFor="pictab-search">{searchLabel}</label>
-    <label className="visually-hidden" htmlFor="pictab-search-engine">{engineLabel}</label>
+    <label className="visually-hidden" htmlFor="newpictab-search">{searchLabel}</label>
+    <label className="visually-hidden" htmlFor="newpictab-search-engine">{engineLabel}</label>
     <button
-      id="pictab-search-engine"
+      id="newpictab-search-engine"
       className="search-box__engine"
       type="button"
       aria-label={engineLabel}
@@ -90,7 +90,7 @@ export function SearchBox({ settings, language = 'zh-CN', navigate = assignLocat
       </button>}
     </div>}
     <input
-      id="pictab-search"
+      id="newpictab-search"
       type="search"
       value={query}
       autoComplete="off"

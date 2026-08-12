@@ -27,7 +27,7 @@ function extractRunScript(stepName: string): string {
 }
 
 function createReleaseFixture(packageVersion: string, manifestVersion: string): string {
-  const root = mkdtempSync(join(tmpdir(), 'pictab-release-workflow-'));
+  const root = mkdtempSync(join(tmpdir(), 'newpictab-release-workflow-'));
   temporaryDirectories.push(root);
   mkdirSync(join(root, 'public'));
   writeFileSync(join(root, 'package.json'), JSON.stringify({ version: packageVersion }));
@@ -124,7 +124,7 @@ printf 'checksum  %s\\n' "$1"
       '--source',
       'dist',
       '--output',
-      'pictab-v1.2.3.zip',
+      'newpictab-v1.2.3.zip',
       '--version',
       '1.2.3'
     ]);
@@ -132,7 +132,7 @@ printf 'checksum  %s\\n' "$1"
 
   it('uploads release assets using their archive filenames', () => {
     const fixture = createReleaseFixture('9.9.9', '1.2.3');
-    const archive = 'pictab-v1.2.3.zip';
+    const archive = 'newpictab-v1.2.3.zip';
     const capturedArgumentsPath = join(fixture, 'gh-arguments.txt');
     const binPath = join(fixture, 'bin');
     mkdirSync(binPath);

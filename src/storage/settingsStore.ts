@@ -1,12 +1,12 @@
 import { migrateSettings } from '../domain/migrate';
 import { createDefaultSettings } from '../domain/defaults';
-import type { PicTabSettings } from '../domain/types';
+import type { NewPicTabSettings } from '../domain/types';
 import { getLocal, onStorageChanged, removeLocal, setLocal } from '../lib/chrome';
-import { withPicTabDataClearLock, withPicTabDataMutationLock } from './maintenance';
+import { withNewPicTabDataClearLock, withNewPicTabDataMutationLock } from './maintenance';
 
-const SETTINGS_KEY = 'pictab';
-export const SETTINGS_BACKUP_KEY = 'pictab-settings-backup-v1';
-const SETTINGS_LOCK = 'pictab-settings-write';
+const SETTINGS_KEY = 'newpictab';
+export const SETTINGS_BACKUP_KEY = 'newpictab-settings-backup-v1';
+const SETTINGS_LOCK = 'newpictab-settings-write';
 
 let queuedWrite: Promise<void> = Promise.resolve();
 
@@ -22,22 +22,22 @@ function withSettingsWriteLock<T>(operation: () => Promise<T>): Promise<T> {
   return queueWrite(operation);
 }
 
-export async function load(): Promise<PicTabSettings> {
+export async function load(): Promise<NewPicTabSettings> {
   const stored = await getLocal<unknown>(SETTINGS_KEY);
   const migrated = migrateSettings(stored);
   if (stored === undefined || sameJsonValue(stored, migrated)) return migrated;
-  return withPicTabDataMutationLock(() => withSettingsWriteLock(loadInsideSettingsLock));
+  return withNewPicTabDataMutationLock(() => withSettingsWriteLock(loadInsideSettingsLock));
 }
 
 /** Use only when the caller already owns the extension-wide data-maintenance lock. */
-export async function loadInsideDataMaintenance(): Promise<PicTabSettings> {
+export async function loadInsideDataMaintenance(): Promise<NewPicTabSettings> {
   const stored = await getLocal<unknown>(SETTINGS_KEY);
   const migrated = migrateSettings(stored);
   if (stored === undefined || sameJsonValue(stored, migrated)) return migrated;
   return withSettingsWriteLock(loadInsideSettingsLock);
 }
 
-async function loadInsideSettingsLock(): Promise<PicTabSettings> {
+async function loadInsideSettingsLock(): Promise<NewPicTabSettings> {
   const stored = await getLocal<unknown>(SETTINGS_KEY);
   const migrated = migrateSettings(stored);
   if (stored !== undefined && !sameJsonValue(stored, migrated)) {
@@ -47,25 +47,25 @@ async function loadInsideSettingsLock(): Promise<PicTabSettings> {
   return migrated;
 }
 
-async function persist(settings: unknown): Promise<PicTabSettings> {
+async function persist(settings: unknown): Promise<NewPicTabSettings> {
   const migrated = migrateSettings(settings);
   await setLocal(SETTINGS_KEY, migrated);
   return migrated;
 }
 
-export async function save(settings: unknown): Promise<PicTabSettings> {
-  return withPicTabDataMutationLock(() => withSettingsWriteLock(() => persist(settings)));
+export async function save(settings: unknown): Promise<NewPicTabSettings> {
+  return withNewPicTabDataMutationLock(() => withSettingsWriteLock(() => persist(settings)));
 }
 
-export async function update(updater: (current: PicTabSettings) => unknown): Promise<PicTabSettings> {
-  return withPicTabDataMutationLock(() => withSettingsWriteLock(async () => persist(updater(await loadInsideSettingsLock()))));
+export async function update(updater: (current: NewPicTabSettings) => unknown): Promise<NewPicTabSettings> {
+  return withNewPicTabDataMutationLock(() => withSettingsWriteLock(async () => persist(updater(await loadInsideSettingsLock()))));
 }
 
-export async function clear(): Promise<PicTabSettings> {
-  return withPicTabDataClearLock(clearInsideDataMaintenance);
+export async function clear(): Promise<NewPicTabSettings> {
+  return withNewPicTabDataClearLock(clearInsideDataMaintenance);
 }
 
-export async function clearInsideDataMaintenance(): Promise<PicTabSettings> {
+export async function clearInsideDataMaintenance(): Promise<NewPicTabSettings> {
   return withSettingsWriteLock(async () => {
     await removeLocal([SETTINGS_KEY, SETTINGS_BACKUP_KEY]);
     return createDefaultSettings();
@@ -86,7 +86,7 @@ function stableJson(value: unknown): string {
   return JSON.stringify(value) ?? 'undefined';
 }
 
-export function subscribe(callback: (settings: PicTabSettings) => void): () => void {
+export function subscribe(callback: (settings: NewPicTabSettings) => void): () => void {
   return onStorageChanged((changes, areaName) => {
     if (areaName === 'local' && SETTINGS_KEY in changes) {
       callback(migrateSettings(changes[SETTINGS_KEY]?.newValue));

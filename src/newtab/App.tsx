@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { createDefaultSettings } from '../domain/defaults';
-import type { PicTabSettings } from '../domain/types';
+import type { NewPicTabSettings } from '../domain/types';
 import type { ImageEntry } from '../sources/adapter';
 import { LocalSourceAdapter } from '../sources/local';
 import * as settingsStore from '../storage/settingsStore';
@@ -21,7 +21,7 @@ import type { WeatherSnapshot } from '../weather/openMeteo';
 import { LanguageProvider } from './i18n';
 
 const BUNDLED_BACKGROUND: BackgroundImage = {
-  id: 'pictab-fallback',
+  id: 'newpictab-fallback',
   sourceId: 'bundled',
   url: '/assets/fallback.svg',
   description: 'A calm gradient background'
@@ -41,7 +41,7 @@ interface WindowLoadOwner {
 }
 
 export default function App() {
-  const [settings, setSettings] = useState<PicTabSettings>(() => createDefaultSettings());
+  const [settings, setSettings] = useState<NewPicTabSettings>(() => createDefaultSettings());
   const [settingsReady, setSettingsReady] = useState(false);
   const [openSourcesRequest, setOpenSourcesRequest] = useState(0);
   const [firstRunDismissRequest, setFirstRunDismissRequest] = useState(0);
@@ -237,7 +237,7 @@ export default function App() {
     };
   }, [activeSourceRevision, localAdapter, loadRemoteWindow, publishWindow, refreshVersion, remoteCacheSession]);
 
-  const updateSettings = useCallback(async (updater: (current: PicTabSettings) => PicTabSettings) => {
+  const updateSettings = useCallback(async (updater: (current: NewPicTabSettings) => NewPicTabSettings) => {
     const updated = await settingsStore.update(updater);
     setSettings(updated);
     return updated;
@@ -336,7 +336,7 @@ export default function App() {
       )}
       <button className="change-image-trigger icon-button" type="button" aria-label={settings.interfaceLanguage === 'zh-CN' ? '切换图片' : 'Change image'} title={settings.interfaceLanguage === 'zh-CN' ? '切换图片' : 'Change image'} onClick={() => void background.goNext()}><Icon name="refresh" /></button>
       {settingsReady && <FirstRun key={firstRunReset} hasConfiguredSource={settings.sources.length > 0} dismissRequest={firstRunDismissRequest} onOpenSources={() => setOpenSourcesRequest((value) => value + 1)} />}
-      <h1 className="app-title">PicTab</h1>
+      <h1 className="app-title">NewPicTab</h1>
     </main>
     <SettingsDrawer settings={settings} onUpdate={updateSettings} onChangeImage={background.goNext} operations={operations} sourceCounts={sourceCounts} sourceStates={sourceStates} onRefreshSource={refreshSource} backgroundElement={backgroundElement} weather={weather} openSourcesRequest={openSourcesRequest} onOpen={() => setFirstRunDismissRequest((value) => value + 1)} onClockScalePreview={setClockScalePreview} onDataCleared={(next) => {
       setSettings(next);
@@ -394,6 +394,6 @@ function hasRemoteWindowCursor(result: Extract<Awaited<ReturnType<typeof listSou
     && result.hasMore === (result.nextOffset < result.totalCount);
 }
 
-function sourceState(source: PicTabSettings['sources'][number], status: 'stale' | 'error', detail: unknown): SourceLoadState {
+function sourceState(source: NewPicTabSettings['sources'][number], status: 'stale' | 'error', detail: unknown): SourceLoadState {
   return { status, detail, protected: source.type === 'webdav' || source.type === 'json-api' || source.type === 'tmdb' };
 }

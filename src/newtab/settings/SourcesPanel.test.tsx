@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createDefaultSettings } from '../../domain/defaults';
-import type { PicTabSettings, SourceConfig } from '../../domain/types';
+import type { NewPicTabSettings, SourceConfig } from '../../domain/types';
 import type { ConnectionTestResult, ImageEntry, ListImagesResult } from '../../sources/adapter';
 import { LocalSourceAdapter } from '../../sources/local';
 import { listLocal, listPendingLocalCleanups, putLocal } from '../../storage/imageDb';
@@ -25,7 +25,7 @@ function sourceOperations(overrides: Partial<SourceOperations> = {}): SourceOper
   };
 }
 
-function Harness({ initial = createDefaultSettings(), operations, counts = {}, onRefresh = vi.fn(), onSettings }: { initial?: PicTabSettings; operations: SourceOperations; counts?: Record<string, number | undefined>; onRefresh?: (sourceId: string) => void | Promise<void>; onSettings?: (settings: PicTabSettings) => void }) {
+function Harness({ initial = createDefaultSettings(), operations, counts = {}, onRefresh = vi.fn(), onSettings }: { initial?: NewPicTabSettings; operations: SourceOperations; counts?: Record<string, number | undefined>; onRefresh?: (sourceId: string) => void | Promise<void>; onSettings?: (settings: NewPicTabSettings) => void }) {
   const [settings, setSettings] = useState(initial);
   const current = useRef(initial);
   return <SourcesPanel settings={settings} operations={operations} counts={counts} onUpdate={async (updater) => {
@@ -38,7 +38,7 @@ function Harness({ initial = createDefaultSettings(), operations, counts = {}, o
 
 async function removeImageDatabase(): Promise<void> {
   await new Promise<void>((resolve, reject) => {
-    const request = indexedDB.deleteDatabase('pictab');
+    const request = indexedDB.deleteDatabase('newpictab');
     request.onsuccess = () => resolve(); request.onerror = () => reject(request.error);
     request.onblocked = () => reject(new Error('test database remained open'));
   });
@@ -221,7 +221,7 @@ describe('SourcesPanel', () => {
       list: vi.fn(async () => ({ ok: true as const, images: cached })),
       materializePreview: vi.fn(async () => ({ entries: [{ id: 'one', sourceId: source.id, url: 'blob:webdav-folder-manage' }], release: vi.fn(), released: false } as unknown as import('../sourceClient').RemoteCacheLease))
     });
-    let latest: PicTabSettings = settings;
+    let latest: NewPicTabSettings = settings;
     const user = userEvent.setup();
     render(<Harness initial={settings} operations={operations} counts={{ [source.id]: 1 }} onSettings={(next) => { latest = next; }} />);
 

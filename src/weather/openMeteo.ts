@@ -5,7 +5,7 @@ export const OPEN_METEO_GEOCODING_ORIGIN = 'https://geocoding-api.open-meteo.com
 export const REVERSE_GEOCODING_ORIGIN = 'https://api.bigdatacloud.net/*';
 export const OPEN_METEO_ORIGINS = [OPEN_METEO_FORECAST_ORIGIN, OPEN_METEO_GEOCODING_ORIGIN, REVERSE_GEOCODING_ORIGIN] as const;
 
-const WEATHER_CACHE_KEY = 'pictab-weather-cache-v1';
+const WEATHER_CACHE_KEY = 'newpictab-weather-cache-v1';
 const MAX_RESPONSE_BYTES = 1_000_000;
 const DEFAULT_TIMEOUT_MS = 10_000;
 let queuedWeatherCacheWrite: Promise<void> = Promise.resolve();

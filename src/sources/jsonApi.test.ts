@@ -6,7 +6,7 @@ import { MAX_REMOTE_TEXT_LENGTH } from './text';
 
 const source: JsonApiSourceConfig = {
   id: 'json-source', name: 'JSON', type: 'json-api', enabled: true, createdAt: 1, updatedAt: 1,
-  endpoint: 'https://api.example.test/images?size=large', headers: { Authorization: 'Bearer very-secret-token', 'X-Client': 'PicTab' },
+  endpoint: 'https://api.example.test/images?size=large', headers: { Authorization: 'Bearer very-secret-token', 'X-Client': 'NewPicTab' },
   authorizedImageOrigins: ['https://images.example.test/*'],
   arrayPath: 'data.items', fields: { imageUrl: 'image.url', stableId: 'id', title: 'title', author: 'artist.name', sourcePage: 'page', width: 'width', height: 'height' },
   startingPage: 2, pageParam: 'page'

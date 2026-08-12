@@ -1,26 +1,26 @@
 import { getLocal, removeLocal, setLocal } from '../lib/chrome';
 
-export const AUXILIARY_STORAGE_MAINTENANCE_LOCK = 'pictab-auxiliary-storage';
-export const DATA_MAINTENANCE_LOCK = 'pictab-all-data';
-export const DATA_CLEAR_MARKER_KEY = 'pictab-clear-in-progress';
+export const AUXILIARY_STORAGE_MAINTENANCE_LOCK = 'newpictab-auxiliary-storage';
+export const DATA_MAINTENANCE_LOCK = 'newpictab-all-data';
+export const DATA_CLEAR_MARKER_KEY = 'newpictab-clear-in-progress';
 const CLEAR_MARKER_MAX_AGE_MS = 5 * 60_000;
 
 interface ClearMarker { startedAt: number; owner: string; }
 
-export class PicTabDataClearingError extends Error {
-  constructor() { super('PicTab data is being cleared.'); this.name = 'PicTabDataClearingError'; }
+export class NewPicTabDataClearingError extends Error {
+  constructor() { super('NewPicTab data is being cleared.'); this.name = 'NewPicTabDataClearingError'; }
 }
 
-export function withPicTabDataMutationLock<T>(operation: () => Promise<T>): Promise<T> {
+export function withNewPicTabDataMutationLock<T>(operation: () => Promise<T>): Promise<T> {
   const locks = globalThis.navigator?.locks;
   if (!locks) return operation();
   return locks.request(DATA_MAINTENANCE_LOCK, { mode: 'shared' }, async () => {
-    if (isFreshMarker(await getLocal<unknown>(DATA_CLEAR_MARKER_KEY))) throw new PicTabDataClearingError();
+    if (isFreshMarker(await getLocal<unknown>(DATA_CLEAR_MARKER_KEY))) throw new NewPicTabDataClearingError();
     return operation();
   });
 }
 
-export async function withPicTabDataClearLock<T>(operation: () => Promise<T>): Promise<T> {
+export async function withNewPicTabDataClearLock<T>(operation: () => Promise<T>): Promise<T> {
   const marker: ClearMarker = { startedAt: Date.now(), owner: createMarkerOwner() };
   await setLocal(DATA_CLEAR_MARKER_KEY, marker);
   try {
@@ -36,7 +36,7 @@ export async function withPicTabDataClearLock<T>(operation: () => Promise<T>): P
 }
 
 export function withAuxiliaryStorageWriteLock<T>(operation: () => Promise<T>): Promise<T> {
-  return withPicTabDataMutationLock(() => {
+  return withNewPicTabDataMutationLock(() => {
     const locks = globalThis.navigator?.locks;
     if (locks) return locks.request(AUXILIARY_STORAGE_MAINTENANCE_LOCK, { mode: 'shared' }, operation);
     return operation();

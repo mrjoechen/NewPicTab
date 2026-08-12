@@ -15,7 +15,7 @@ describe('RemoteCache', () => {
   it('caches safe images under a synthetic secret-free key and touches hits', async () => {
     const meta = new MemoryMeta(); const cache = new MemoryCache(); const subject = new RemoteCache({ meta, cache, now: (() => { let n = 1; return () => ++n; })() });
     await expect(subject.put('remote', 'https://images.example/a.jpg?token=secret', image(), 'direct')).resolves.toMatchObject({ cached: true });
-    const record = (await meta.list())[0]; expect(record.cacheKey).toMatch(/^https:\/\/cache\.pictab\.invalid\//); expect(record.cacheKey).not.toContain('secret');
+    const record = (await meta.list())[0]; expect(record.cacheKey).toMatch(/^https:\/\/cache\.newpictab\.invalid\//); expect(record.cacheKey).not.toContain('secret');
     await expect(subject.get('remote', 'https://images.example/a.jpg?token=secret')).resolves.toBeInstanceOf(Response);
     expect((await meta.list())[0].lastAccessed).toBeGreaterThan(record.lastAccessed);
   });
@@ -77,7 +77,7 @@ describe('RemoteCache', () => {
     const listed = await subject.listSource('remote');
 
     expect(listed).toEqual([{ id: 'one', sourceId: 'remote', remoteCacheEntryId: 'one', remoteCacheFingerprint: '', description: 'One' }]);
-    expect(JSON.stringify(listed)).not.toContain('cache.pictab.invalid');
+    expect(JSON.stringify(listed)).not.toContain('cache.newpictab.invalid');
     expect(JSON.stringify(listed)).not.toContain('secret');
     expect((await meta.list()).find((record) => record.sourceId === 'remote')!.lastAccessed).toBe(beforeList);
   });
@@ -229,7 +229,7 @@ describe('RemoteCache', () => {
   });
   it('reconciles cache-only and metadata-only crash orphans on a fresh worker instance', async () => {
     const meta = new MemoryMeta(); const cache = new MemoryCache(); const key = await RemoteCache.keyFor('remote', 'meta-only');
-    await meta.put({ sourceId: 'remote', entryId: 'meta-only', cacheKey: key, size: 1, lastAccessed: 1 }); await cache.put('https://cache.pictab.invalid/cache-only', image());
+    await meta.put({ sourceId: 'remote', entryId: 'meta-only', cacheKey: key, size: 1, lastAccessed: 1 }); await cache.put('https://cache.newpictab.invalid/cache-only', image());
     const restarted = new RemoteCache({ meta, cache }); await restarted.touch('remote', 'nothing');
     expect(await meta.list()).toHaveLength(0); expect(cache.values.size).toBe(0);
   });

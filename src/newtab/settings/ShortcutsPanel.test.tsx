@@ -3,12 +3,12 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createDefaultSettings } from '../../domain/defaults';
-import type { PicTabSettings } from '../../domain/types';
+import type { NewPicTabSettings } from '../../domain/types';
 import { ShortcutsPanel, validateShortcutIcon } from './ShortcutsPanel';
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers(); });
 
-function StatefulPanel({ initial = createDefaultSettings() }: { initial?: PicTabSettings }) {
+function StatefulPanel({ initial = createDefaultSettings() }: { initial?: NewPicTabSettings }) {
   const [settings, setSettings] = React.useState(initial);
   return <ShortcutsPanel settings={settings} onUpdate={(updater) => {
     setSettings((current) => updater(current));
@@ -107,7 +107,7 @@ describe('ShortcutsPanel', () => {
   it('keeps dock size dragging local until the range interaction commits', () => {
     const settings = createDefaultSettings();
     settings.widgets.shortcuts.scale = 1.1;
-    const onUpdate = vi.fn(async (updater: (current: PicTabSettings) => PicTabSettings) => updater(settings));
+    const onUpdate = vi.fn(async (updater: (current: NewPicTabSettings) => NewPicTabSettings) => updater(settings));
     render(<ShortcutsPanel settings={settings} onUpdate={onUpdate} />);
 
     const size = screen.getByLabelText('Dock 大小');

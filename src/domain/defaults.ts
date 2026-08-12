@@ -1,4 +1,4 @@
-import type { PicTabSettings } from './types';
+import type { NewPicTabSettings } from './types';
 
 export type DeepReadonly<T> = T extends (...args: never[]) => unknown
   ? T
@@ -16,7 +16,7 @@ function deepFreeze<T>(value: T): DeepReadonly<T> {
   return value as DeepReadonly<T>;
 }
 
-export function createDefaultSettings(): PicTabSettings {
+export function createDefaultSettings(): NewPicTabSettings {
   return {
     version: 1,
     interfaceLanguage: 'zh-CN',
@@ -47,4 +47,4 @@ export function createDefaultSettings(): PicTabSettings {
   };
 }
 
-export const DEFAULT_SETTINGS: DeepReadonly<PicTabSettings> = deepFreeze(createDefaultSettings());
+export const DEFAULT_SETTINGS: DeepReadonly<NewPicTabSettings> = deepFreeze(createDefaultSettings());

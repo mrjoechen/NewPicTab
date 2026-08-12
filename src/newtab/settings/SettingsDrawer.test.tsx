@@ -143,7 +143,7 @@ describe('SettingsDrawer', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: '打开设置' }));
 
     const repository = screen.getByRole('link', { name: '打开 GitHub 项目' });
-    expect(repository).toHaveAttribute('href', 'https://github.com/mrjoechen/PicTab');
+    expect(repository).toHaveAttribute('href', 'https://github.com/mrjoechen/NewPicTab');
     expect(repository).toHaveAttribute('target', '_blank');
     expect(repository).toHaveAttribute('rel', expect.stringContaining('noopener'));
     expect(repository).toHaveAttribute('rel', expect.stringContaining('noreferrer'));

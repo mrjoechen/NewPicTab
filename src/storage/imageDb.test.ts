@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { clearAllLocalData, deleteLocal, deleteSource, listLocal, listPendingLocalCleanups, markPendingLocalImport, putLocal, reorderLocal } from './imageDb';
 
-const databaseName = 'pictab';
+const databaseName = 'newpictab';
 
 function blob(contents = 'image', type = 'image/png'): Blob {
   // fake-indexeddb uses Node's structured-clone implementation, which retains this Blob.

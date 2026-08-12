@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import type { PicTabSettings, WidgetSettings } from '../../domain/types';
+import type { NewPicTabSettings, WidgetSettings } from '../../domain/types';
 import { requestOriginPermissions } from '../../lib/permissions';
 import type { WeatherBackgroundResponse } from '../../background/messages';
 import { OPEN_METEO_ORIGINS, reverseGeocodeLocation, type CityResult, type WeatherLocation } from '../../weather/openMeteo';
@@ -20,7 +20,7 @@ export interface WeatherOperations {
 
 export interface WidgetsPanelProps {
   section: 'time' | 'weather' | 'search';
-  settings: PicTabSettings;
+  settings: NewPicTabSettings;
   onUpdate: SettingsUpdater;
   operations?: WeatherOperations;
   currentWeather?: WeatherSnapshot | null;
@@ -81,7 +81,7 @@ function SearchPanel({ value, onUpdate }: { value: WidgetSettings['search']; onU
   };
   const setEnabled = (enabled: boolean) => patchSearch((current) => ({ ...current, enabled }));
   return <section className="settings-section" aria-labelledby="search-title">
-    <header className="settings-section__header"><h2 id="search-title">搜索</h2><p>搜索词会直接交给所选引擎，PicTab 不会记录。</p></header>
+    <header className="settings-section__header"><h2 id="search-title">搜索</h2><p>搜索词会直接交给所选引擎，NewPicTab 不会记录。</p></header>
     <div className="settings-form">
       <label className="check-field"><input type="checkbox" checked={value.enabled} disabled={busy} onChange={(event) => void setEnabled(event.target.checked)} />显示搜索</label>
       <label className="field"><span>搜索引擎</span><select value={engine} disabled={busy} onChange={(event) => void changeEngine(event.target.value as WidgetSettings['search']['engine'])}>{Object.entries(SEARCH_ENGINES).map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}<option value="custom">自定义</option></select></label>
@@ -144,7 +144,7 @@ function scaleLabel(value: string): string {
   return `${Math.round(boundedClockScale(Number(value)) * 100)}%`;
 }
 
-function WeatherPanel({ value, language, onUpdate, operations, currentWeather }: { value: WidgetSettings['weather']; language: PicTabSettings['interfaceLanguage']; onUpdate: SettingsUpdater; operations: WeatherOperations; currentWeather?: WeatherSnapshot | null }) {
+function WeatherPanel({ value, language, onUpdate, operations, currentWeather }: { value: WidgetSettings['weather']; language: NewPicTabSettings['interfaceLanguage']; onUpdate: SettingsUpdater; operations: WeatherOperations; currentWeather?: WeatherSnapshot | null }) {
   const [query, setQuery] = useState(value.mode === 'city' ? value.city : '');
   const [cities, setCities] = useState<CityResult[]>([]);
   const [busy, setBusy] = useState(false);
@@ -211,7 +211,7 @@ function WeatherPanel({ value, language, onUpdate, operations, currentWeather }:
       {currentWeather?.stale && <p className="form-message weather-stale" role="status">当前显示的是缓存天气，网络恢复后会自动刷新。</p>}
       <div className="weather-search"><label className="field"><span>搜索城市</span><input ref={searchInput} value={query} aria-busy={busy} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void search(); } }} /></label><button className="button button--secondary button--with-icon" type="button" aria-label="搜索" title="搜索" disabled={busy} onClick={() => void search()}><Icon name="search" /><span>搜索</span></button></div>
       {cities.length > 0 && <ul className="weather-results" aria-label="城市搜索结果">{cities.map((city) => <li key={city.id}><button type="button" aria-label={`选择 ${city.label}`} onClick={() => chooseCity(city)}><strong>{city.name}</strong><span>{city.label}</span></button></li>)}</ul>}
-      <div className="weather-location-note"><p>定位仅在点击此按钮后读取一次，用来向 Open-Meteo 查询当地天气；PicTab 不会持续追踪位置。</p><div className="weather-location-action" role="group" aria-label="当前位置"><button className="button button--secondary button--with-icon" type="button" aria-label="使用当前位置" title="使用当前位置" disabled={busy} onClick={() => void useLocation()}><Icon name="location" /><span>定位</span></button>{value.mode === 'coordinates' && value.city && <span className="weather-current-location">{value.city}</span>}</div></div>
+      <div className="weather-location-note"><p>定位仅在点击此按钮后读取一次，用来向 Open-Meteo 查询当地天气；NewPicTab 不会持续追踪位置。</p><div className="weather-location-action" role="group" aria-label="当前位置"><button className="button button--secondary button--with-icon" type="button" aria-label="使用当前位置" title="使用当前位置" disabled={busy} onClick={() => void useLocation()}><Icon name="location" /><span>定位</span></button>{value.mode === 'coordinates' && value.city && <span className="weather-current-location">{value.city}</span>}</div></div>
       {message && <p className="form-message" role="status" aria-live="polite">{message}</p>}
     </div>
   </section>;

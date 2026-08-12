@@ -2,7 +2,7 @@ import type { ImageEntry, SourceError } from '../sources/adapter';
 import type { SourceType } from '../domain/types';
 import { hasBoundedRemoteText } from '../sources/text';
 
-const DATABASE_NAME = 'pictab-remote-catalog';
+const DATABASE_NAME = 'newpictab-remote-catalog';
 const STORE_NAME = 'catalogs';
 
 export interface CatalogRecord {

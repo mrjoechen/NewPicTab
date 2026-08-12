@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-import type { PicTabSettings, SourceConfig, SourceType, TmdbSourceConfig } from '../../domain/types';
+import type { NewPicTabSettings, SourceConfig, SourceType, TmdbSourceConfig } from '../../domain/types';
 import type { ConnectionTestResult } from '../../sources/adapter';
 import type { ImageEntry, ListImagesResult } from '../../sources/adapter';
 import type { LocalImportResult } from '../../sources/local';
@@ -14,7 +14,7 @@ import { isolateModalBackground } from '../../lib/modalIsolation';
 import { SourceStatus, type SourceStatusState } from '../components/SourceStatus';
 import { Icon } from '../components/Icon';
 
-export type SettingsUpdater = (updater: (current: PicTabSettings) => PicTabSettings) => Promise<PicTabSettings> | PicTabSettings | void;
+export type SettingsUpdater = (updater: (current: NewPicTabSettings) => NewPicTabSettings) => Promise<NewPicTabSettings> | NewPicTabSettings | void;
 export type TmdbMetadataResult = { ok: true; genres: { id: number; name: string }[]; languages: string[]; regions: string[] } | { ok: false; error: { message: string } };
 
 export interface SourceOperations {
@@ -37,7 +37,7 @@ export interface SourceOperations {
 }
 
 export interface SourcesPanelProps {
-  settings: PicTabSettings;
+  settings: NewPicTabSettings;
   operations: SourceOperations;
   counts: Record<string, number | undefined>;
   states?: Record<string, SourceLoadState | undefined>;
@@ -143,7 +143,7 @@ export function SourcesPanel({ settings, operations, counts, states = {}, onUpda
     <section className="settings-section" aria-labelledby="sources-title">
       <header className="settings-section__header"><p className="settings-eyebrow">图库</p><h2 id="sources-title">图片源</h2><p>添加多个来源，随时切换当前展示的图库。</p></header>
       <div className="source-list">
-        {settings.sources.length === 0 && <div className="empty-state"><strong>还没有图片源</strong><span>添加后，PicTab 会立即显示其中的图片。</span></div>}
+        {settings.sources.length === 0 && <div className="empty-state"><strong>还没有图片源</strong><span>添加后，NewPicTab 会立即显示其中的图片。</span></div>}
         {settings.sources.map((source) => {
           const availability = sourceAvailability(source, states[source.id]);
           return <article className={`source-card${settings.activeSourceId === source.id ? ' source-card--active' : ''}`} key={source.id}>

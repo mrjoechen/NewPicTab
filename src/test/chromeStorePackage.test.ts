@@ -14,10 +14,10 @@ const packageScript = resolve(process.cwd(), 'scripts/package-chrome-store.mjs')
 const temporaryDirectories: string[] = [];
 
 function createFixture(): { outputPath: string; sourcePath: string } {
-  const root = mkdtempSync(join(tmpdir(), 'pictab-chrome-store-'));
+  const root = mkdtempSync(join(tmpdir(), 'newpictab-chrome-store-'));
   temporaryDirectories.push(root);
   const sourcePath = join(root, 'dist');
-  const outputPath = join(root, 'pictab-v1.2.3-chrome-store.zip');
+  const outputPath = join(root, 'newpictab-v1.2.3-chrome-store.zip');
   mkdirSync(join(sourcePath, 'icons'), { recursive: true });
   mkdirSync(join(sourcePath, 'assets'), { recursive: true });
   writeFileSync(join(sourcePath, 'icons/icon-128.png'), 'icon');
@@ -31,7 +31,7 @@ function createFixture(): { outputPath: string; sourcePath: string } {
     join(sourcePath, 'manifest.json'),
     JSON.stringify({
       manifest_version: 3,
-      name: 'PicTab',
+      name: 'NewPicTab',
       description: 'A new tab extension.',
       version: '1.2.3',
       icons: { 128: 'icons/icon-128.png' },

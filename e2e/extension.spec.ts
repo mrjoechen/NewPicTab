@@ -16,7 +16,7 @@ let extensionId: string;
 test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async () => {
-  temporaryRoot = await mkdtemp(path.join(tmpdir(), 'pictab-e2e-'));
+  temporaryRoot = await mkdtemp(path.join(tmpdir(), 'newpictab-e2e-'));
   const profilePath = path.join(temporaryRoot, 'profile');
   const fixtureExtensionPath = path.join(temporaryRoot, 'extension');
   await cp(extensionPath, fixtureExtensionPath, { recursive: true });
@@ -55,8 +55,8 @@ test('loads the unpacked new-tab override with an offline-safe first paint', asy
   await expect(page).toHaveURL(`chrome-extension://${extensionId}/newtab.html`);
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
   await expect(page.getByAltText('A calm gradient background')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'PicTab' })).toBeAttached();
-  await expect(page.getByLabel('开始使用 PicTab')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'NewPicTab' })).toBeAttached();
+  await expect(page.getByLabel('开始使用 NewPicTab')).toBeVisible();
 
   await context.setOffline(true);
   await page.reload();
@@ -161,7 +161,7 @@ test('activates a private local source and persists display preferences', async 
 });
 
 test('activates a deterministic Direct source and switches back to local', async () => {
-  const remoteUrl = 'https://images.test/pictab.png';
+  const remoteUrl = 'https://images.test/newpictab.png';
   await installDirectRuntimeFixture(page, remoteUrl);
   await expect.poll(() => page.evaluate(() => chrome.permissions.contains({ origins: ['https://images.test/*'] }))).toBe(true);
 
@@ -177,8 +177,8 @@ test('activates a deterministic Direct source and switches back to local', async
   await page.getByRole('button', { name: '保存并使用' }).click();
   await expect(page.getByRole('heading', { name: '网络收藏' })).toBeVisible();
   const directId = await page.evaluate(async () => {
-    const { pictab } = await chrome.storage.local.get('pictab') as { pictab: { sources: Array<{ id: string; name: string }> } };
-    return pictab.sources.find((source) => source.name === '网络收藏')!.id;
+    const { newpictab } = await chrome.storage.local.get('newpictab') as { newpictab: { sources: Array<{ id: string; name: string }> } };
+    return newpictab.sources.find((source) => source.name === '网络收藏')!.id;
   });
   await page.getByRole('button', { name: '关闭设置' }).click();
   await expect(page.getByTestId('background-current')).toHaveAttribute('data-source-id', directId);
@@ -188,8 +188,8 @@ test('activates a deterministic Direct source and switches back to local', async
   const localCard = page.locator('.source-card').filter({ hasText: '离线图库' });
   await localCard.getByRole('button', { name: '使用此源' }).click();
   const localId = await page.evaluate(async () => {
-    const { pictab } = await chrome.storage.local.get('pictab') as { pictab: { sources: Array<{ id: string; name: string }> } };
-    return pictab.sources.find((source) => source.name === '离线图库')!.id;
+    const { newpictab } = await chrome.storage.local.get('newpictab') as { newpictab: { sources: Array<{ id: string; name: string }> } };
+    return newpictab.sources.find((source) => source.name === '离线图库')!.id;
   });
   await page.getByRole('button', { name: '关闭设置' }).click();
   await expect(page.getByTestId('background-current')).toHaveAttribute('data-source-id', localId);
@@ -199,10 +199,10 @@ test('activates a deterministic Direct source and switches back to local', async
 test('shows privacy details and requires confirmation before clearing data', async () => {
   await page.getByRole('button', { name: '打开设置' }).click();
   await page.getByRole('button', { name: '关于' }).click();
-  await expect(page.getByText('PicTab 不包含统计、遥测或跟踪')).toBeVisible();
+  await expect(page.getByText('NewPicTab 不包含统计、遥测或跟踪')).toBeVisible();
   await expect(page.getByRole('link', { name: '申请 TMDB API 凭据' })).toHaveAttribute('rel', /noopener/);
-  await page.getByRole('button', { name: '清除所有 PicTab 数据' }).click();
-  const confirmation = page.getByRole('alertdialog', { name: '清除所有 PicTab 数据' });
+  await page.getByRole('button', { name: '清除所有 NewPicTab 数据' }).click();
+  const confirmation = page.getByRole('alertdialog', { name: '清除所有 NewPicTab 数据' });
   await expect(confirmation).toBeVisible();
   await expect(confirmation.getByText('设置与凭据')).toBeVisible();
   await confirmation.getByRole('button', { name: '取消' }).click();
@@ -211,8 +211,8 @@ test('shows privacy details and requires confirmation before clearing data', asy
 
 async function seedWeatherToggle(target: Page): Promise<void> {
   await target.evaluate(async () => {
-    const stored = await chrome.storage.local.get('pictab');
-    const settings = stored.pictab as { widgets: { weather: unknown } };
+    const stored = await chrome.storage.local.get('newpictab');
+    const settings = stored.newpictab as { widgets: { weather: unknown } };
     settings.widgets.weather = {
       enabled: true,
       mode: 'city',
@@ -221,7 +221,7 @@ async function seedWeatherToggle(target: Page): Promise<void> {
       longitude: 0,
       animated: false
     };
-    await chrome.storage.local.set({ pictab: settings });
+    await chrome.storage.local.set({ newpictab: settings });
   });
 }
 

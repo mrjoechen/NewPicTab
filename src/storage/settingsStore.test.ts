@@ -38,7 +38,7 @@ describe('settingsStore', () => {
   });
 
   it('loads the active source id when it references a valid persisted source', async () => {
-    localData.pictab = {
+    localData.newpictab = {
       activeSourceId: 'local-1',
       sources: [{
         id: 'local-1', name: 'Photos', type: 'local', enabled: true,
@@ -51,28 +51,28 @@ describe('settingsStore', () => {
 
   it('backs up partially invalid persisted settings before storing and returning the migrated result', async () => {
     const original = { version: 0, appearance: { transition: 'spin', transitionMs: 999_999 }, unknown: 'preserve in backup' };
-    localData.pictab = structuredClone(original);
+    localData.newpictab = structuredClone(original);
 
     const result = await load();
 
     expect(localData[SETTINGS_BACKUP_KEY]).toEqual(original);
-    expect(localData.pictab).toEqual(result);
+    expect(localData.newpictab).toEqual(result);
     expect(result).toMatchObject({ version: 1, appearance: { transition: 'fade' } });
     const writes = vi.mocked(chrome.storage.local.set).mock.calls.map(([value]) => value);
-    expect(writes).toEqual([{ [SETTINGS_BACKUP_KEY]: original }, { pictab: result }]);
+    expect(writes).toEqual([{ [SETTINGS_BACKUP_KEY]: original }, { newpictab: result }]);
   });
 
-  it('saves migrated settings only to chrome.storage.local under pictab', async () => {
+  it('saves migrated settings only to chrome.storage.local under newpictab', async () => {
     await save({ appearance: { transition: 'spin' } });
 
     expect(chrome.storage.local.set).toHaveBeenCalledWith({
-      pictab: expect.objectContaining({ appearance: expect.objectContaining({ transition: 'fade' }) })
+      newpictab: expect.objectContaining({ appearance: expect.objectContaining({ transition: 'fade' }) })
     });
     expect(chrome.storage.sync.set).not.toHaveBeenCalled();
   });
 
   it('updates from the current persisted settings without losing nested fields', async () => {
-    localData.pictab = {
+    localData.newpictab = {
       appearance: { transition: 'slide', transitionMs: 700 },
       widgets: { clock: { enabled: false } }
     };
@@ -84,15 +84,15 @@ describe('settingsStore', () => {
 
     expect(result.appearance).toMatchObject({ transition: 'slide', transitionMs: 900 });
     expect(result.widgets.clock.enabled).toBe(false);
-    expect(localData.pictab).toEqual(result);
+    expect(localData.newpictab).toEqual(result);
   });
 
   it('serializes a public save behind an in-flight update so it cannot overwrite an old snapshot', async () => {
     const initial = { appearance: { transition: 'fade' }, widgets: { clock: { enabled: true } } };
-    let resolveRead: ((value: { pictab: typeof initial }) => void) | undefined;
+    let resolveRead: ((value: { newpictab: typeof initial }) => void) | undefined;
     const local = chrome.storage.local as unknown as { get: ReturnType<typeof vi.fn>; set: ReturnType<typeof vi.fn> };
-    local.get = vi.fn((key: string) => key === 'pictab'
-      ? new Promise<{ pictab: typeof initial }>((resolve) => { resolveRead = resolve; })
+    local.get = vi.fn((key: string) => key === 'newpictab'
+      ? new Promise<{ newpictab: typeof initial }>((resolve) => { resolveRead = resolve; })
       : Promise.resolve({ [key]: localData[key] }));
     const originalLocks = navigator.locks;
     const previous = new Map<string, Promise<unknown>>();
@@ -109,12 +109,12 @@ describe('settingsStore', () => {
         ...current,
         widgets: { ...current.widgets, clock: { ...current.widgets.clock, enabled: false } }
       }));
-      await vi.waitFor(() => expect(local.get).toHaveBeenCalledWith('pictab'));
+      await vi.waitFor(() => expect(local.get).toHaveBeenCalledWith('newpictab'));
       const saving = save({ appearance: { transition: 'slide' }, widgets: { date: { enabled: false } } });
       await Promise.resolve();
       const writesBeforeReadCompletes = local.set.mock.calls.length;
 
-      resolveRead?.({ pictab: initial });
+      resolveRead?.({ newpictab: initial });
       await Promise.all([updating, saving]);
 
       expect(writesBeforeReadCompletes).toBe(0);
@@ -123,7 +123,7 @@ describe('settingsStore', () => {
       Object.defineProperty(navigator, 'locks', { value: originalLocks, configurable: true });
     }
 
-    expect(localData.pictab).toEqual(expect.objectContaining({
+    expect(localData.newpictab).toEqual(expect.objectContaining({
       appearance: expect.objectContaining({ transition: 'slide' }),
       widgets: expect.objectContaining({
         clock: expect.objectContaining({ enabled: true }),
@@ -133,7 +133,7 @@ describe('settingsStore', () => {
   });
 
   it('serializes interleaved updates so each updater observes the previous write', async () => {
-    localData.pictab = { appearance: { transition: 'fade' }, widgets: { clock: { enabled: true } } };
+    localData.newpictab = { appearance: { transition: 'fade' }, widgets: { clock: { enabled: true } } };
     const originalLocks = navigator.locks;
     Object.defineProperty(navigator, 'locks', { value: undefined, configurable: true });
 
@@ -146,7 +146,7 @@ describe('settingsStore', () => {
       Object.defineProperty(navigator, 'locks', { value: originalLocks, configurable: true });
     }
 
-    expect(localData.pictab).toEqual(expect.objectContaining({
+    expect(localData.newpictab).toEqual(expect.objectContaining({
       appearance: expect.objectContaining({ transition: 'slide' }),
       widgets: expect.objectContaining({ clock: expect.objectContaining({ enabled: false }) })
     }));
@@ -162,7 +162,7 @@ describe('settingsStore', () => {
     });
     const originalLocks = navigator.locks;
     Object.defineProperty(navigator, 'locks', { value: { request }, configurable: true });
-    localData.pictab = { appearance: { transition: 'fade' }, widgets: { clock: { enabled: true } } };
+    localData.newpictab = { appearance: { transition: 'fade' }, widgets: { clock: { enabled: true } } };
 
     try {
       await Promise.all([
@@ -173,8 +173,8 @@ describe('settingsStore', () => {
       Object.defineProperty(navigator, 'locks', { value: originalLocks, configurable: true });
     }
 
-    expect(request).toHaveBeenCalledWith('pictab-settings-write', expect.any(Function));
-    expect(localData.pictab).toEqual(expect.objectContaining({
+    expect(request).toHaveBeenCalledWith('newpictab-settings-write', expect.any(Function));
+    expect(localData.newpictab).toEqual(expect.objectContaining({
       appearance: expect.objectContaining({ transition: 'slide' }),
       widgets: expect.objectContaining({ clock: expect.objectContaining({ enabled: false }) })
     }));
@@ -196,7 +196,7 @@ describe('settingsStore', () => {
     });
 
     expect(chrome.storage.local.set).toHaveBeenCalledWith({
-      pictab: expect.objectContaining({
+      newpictab: expect.objectContaining({
         sources: expect.arrayContaining([
           expect.objectContaining({ password: 'webdav-secret' }),
           expect.objectContaining({ headers: { Authorization: 'Bearer json-secret' } }),
@@ -207,15 +207,15 @@ describe('settingsStore', () => {
     expect(chrome.storage.sync.set).not.toHaveBeenCalled();
   });
 
-  it('notifies for local pictab changes, migrates the value, and unsubscribes', () => {
+  it('notifies for local newpictab changes, migrates the value, and unsubscribes', () => {
     const callback = vi.fn();
     const unsubscribe = subscribe(callback);
 
-    changeListener?.({ pictab: { newValue: { appearance: { transition: 'spin' } } } }, 'sync');
+    changeListener?.({ newpictab: { newValue: { appearance: { transition: 'spin' } } } }, 'sync');
     changeListener?.({ other: { newValue: {} } }, 'local');
     expect(callback).not.toHaveBeenCalled();
 
-    changeListener?.({ pictab: { newValue: { appearance: { transition: 'spin' } } } }, 'local');
+    changeListener?.({ newpictab: { newValue: { appearance: { transition: 'spin' } } } }, 'local');
     expect(callback).toHaveBeenCalledWith(expect.objectContaining({
       appearance: expect.objectContaining({ transition: 'fade' })
     }));
@@ -225,14 +225,14 @@ describe('settingsStore', () => {
   });
 
   it('clears credentials under the settings write lock and returns defaults', async () => {
-    localData.pictab = {
+    localData.newpictab = {
       sources: [{ id: 'dav', name: 'DAV', type: 'webdav', enabled: true, createdAt: 1, updatedAt: 1, url: 'https://dav.example', username: 'ada', password: 'private', includeSubdirectories: false }]
     };
     localData[SETTINGS_BACKUP_KEY] = { password: 'old-private' };
 
     await expect(clear()).resolves.toEqual(DEFAULT_SETTINGS);
 
-    expect(chrome.storage.local.remove).toHaveBeenCalledWith(['pictab', SETTINGS_BACKUP_KEY]);
-    expect(localData).not.toHaveProperty('pictab'); expect(localData).not.toHaveProperty(SETTINGS_BACKUP_KEY);
+    expect(chrome.storage.local.remove).toHaveBeenCalledWith(['newpictab', SETTINGS_BACKUP_KEY]);
+    expect(localData).not.toHaveProperty('newpictab'); expect(localData).not.toHaveProperty(SETTINGS_BACKUP_KEY);
   });
 });

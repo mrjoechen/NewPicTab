@@ -1,8 +1,8 @@
 {
   "extensionName": {
-    "message": "PicTab"
+    "message": "NewPicTab"
   },
   "extensionDescription": {
-    "message": "以本地、WebDAV、在线 URL、JSON API 或 TMDB 图片打造极简新标签页。"
+    "message": "让你的新 Tab 赏心悦目。支持以本地、WebDAV 或 TMDB 图片打造极简新标签页。"
   }
 }

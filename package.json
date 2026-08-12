@@ -1,11 +1,11 @@
 {
-  "name": "pictab",
+  "name": "newpictab",
   "version": "0.1.0",
   "description": "A minimal, source-configurable Chrome new tab background.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mrjoechen/PicTab.git"
+    "url": "git+https://github.com/mrjoechen/NewPicTab.git"
   },
   "private": true,
   "type": "module",

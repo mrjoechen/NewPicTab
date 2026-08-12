@@ -14,7 +14,7 @@ import {
   validateShortcutTitle,
   validateShortcutUrl
 } from '../../domain/shortcuts';
-import type { PicTabSettings, Shortcut, ShortcutVisibleLimit } from '../../domain/types';
+import type { NewPicTabSettings, Shortcut, ShortcutVisibleLimit } from '../../domain/types';
 import type { SettingsUpdater } from './SourcesPanel';
 import { Icon } from '../components/Icon';
 import { defaultFaviconUrl } from '../components/ShortcutDock';
@@ -24,7 +24,7 @@ const OUTPUT_ICON_DIMENSION = 128;
 const IMAGE_DECODE_TIMEOUT_MS = 3_000;
 
 export interface ShortcutsPanelProps {
-  settings: PicTabSettings;
+  settings: NewPicTabSettings;
   onUpdate: SettingsUpdater;
 }
 
@@ -115,7 +115,7 @@ export function ShortcutsPanel({ settings, onUpdate }: ShortcutsPanelProps) {
     return () => document.removeEventListener('keydown', onDocumentKeyDown, true);
   }, [busy, draftFocusKey]);
 
-  const updateSetting = async (updater: (current: PicTabSettings) => PicTabSettings, failure: string): Promise<boolean> => {
+  const updateSetting = async (updater: (current: NewPicTabSettings) => NewPicTabSettings, failure: string): Promise<boolean> => {
     const generation = ++operationGeneration.current;
     setBusy(true); setError('');
     try { await onUpdate(updater); return generation === operationGeneration.current; }

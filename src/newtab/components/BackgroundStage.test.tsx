@@ -126,9 +126,9 @@ describe('BackgroundStage', () => {
   it('combines a short opacity cross-fade with a separate slow pan and scale animation', () => {
     const css = readFileSync('src/newtab/styles.css', 'utf8');
 
-    expect(css).toMatch(/pictab-fade-in var\(--background-transition-ms\)/);
-    expect(css).toMatch(/pictab-ken-burns-display var\(--background-display-ms\)[^;]*infinite alternate/);
-    expect(css).toMatch(/@keyframes pictab-ken-burns-display[\s\S]*translate3d\([^)]*%[\s\S]*scale\(/);
+    expect(css).toMatch(/newpictab-fade-in var\(--background-transition-ms\)/);
+    expect(css).toMatch(/newpictab-ken-burns-display var\(--background-display-ms\)[^;]*infinite alternate/);
+    expect(css).toMatch(/@keyframes newpictab-ken-burns-display[\s\S]*translate3d\([^)]*%[\s\S]*scale\(/);
     expect(css).not.toMatch(/background-stage:not\(\[data-transition="none"\]\)[\s\S]{0,120}will-change/);
     expect(css).toMatch(/data-display-motion="ken-burns"[\s\S]{0,180}will-change:\s*transform/);
   });

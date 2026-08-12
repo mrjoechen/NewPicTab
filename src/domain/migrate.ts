@@ -3,7 +3,7 @@ import type {
   AppearanceSettings,
   DirectEntry,
   JsonApiSourceConfig,
-  PicTabSettings,
+  NewPicTabSettings,
   Shortcut,
   SourceBase,
   SourceConfig,
@@ -68,7 +68,7 @@ function nonEmptyString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() !== '' ? value : undefined;
 }
 
-function cloneDefaults(): PicTabSettings {
+function cloneDefaults(): NewPicTabSettings {
   return createDefaultSettings();
 }
 
@@ -325,12 +325,12 @@ function uniqueById<T extends { id: string }>(values: readonly T[]): T[] {
 }
 
 /** Converts untrusted persisted data from any previous schema to complete v1 settings. */
-export function migrateSettings(value: unknown): PicTabSettings {
+export function migrateSettings(value: unknown): NewPicTabSettings {
   const settings = cloneDefaults();
   if (!isRecord(value)) return settings;
 
   settings.interfaceLanguage = INTERFACE_LANGUAGES.has(value.interfaceLanguage as string)
-    ? value.interfaceLanguage as PicTabSettings['interfaceLanguage']
+    ? value.interfaceLanguage as NewPicTabSettings['interfaceLanguage']
     : DEFAULT_SETTINGS.interfaceLanguage;
   settings.appearance = migrateAppearance(value.appearance);
   settings.widgets = migrateWidgets(value.widgets);
