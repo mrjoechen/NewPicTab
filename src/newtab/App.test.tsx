@@ -90,6 +90,15 @@ describe('App', () => {
     await waitFor(() => expect(chrome.storage.local.get).toHaveBeenCalled());
   });
 
+  it('places image change and settings in independent corner reveal regions', () => {
+    render(<App />);
+
+    expect(screen.getByRole('button', { name: '切换图片' }).closest('.corner-control'))
+      .toHaveClass('corner-control--left');
+    expect(screen.getByRole('button', { name: '打开设置' }).closest('.corner-control'))
+      .toHaveClass('corner-control--right');
+  });
+
   it('shows the first-run invitation only after settings load and opens Sources without covering the resting page with a modal', async () => {
     render(<App />);
 

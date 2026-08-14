@@ -334,7 +334,9 @@ export default function App() {
           </span>
         </div>
       )}
-      <button className="change-image-trigger icon-button" type="button" aria-label={settings.interfaceLanguage === 'zh-CN' ? '切换图片' : 'Change image'} title={settings.interfaceLanguage === 'zh-CN' ? '切换图片' : 'Change image'} onClick={() => void background.goNext()}><Icon name="refresh" /></button>
+      <div className="corner-control corner-control--left">
+        <button className="change-image-trigger corner-control__button icon-button" type="button" aria-label={settings.interfaceLanguage === 'zh-CN' ? '切换图片' : 'Change image'} title={settings.interfaceLanguage === 'zh-CN' ? '切换图片' : 'Change image'} onClick={() => void background.goNext()}><Icon name="refresh" /></button>
+      </div>
       {settingsReady && <FirstRun key={firstRunReset} hasConfiguredSource={settings.sources.length > 0} dismissRequest={firstRunDismissRequest} onOpenSources={() => setOpenSourcesRequest((value) => value + 1)} />}
       <h1 className="app-title">NewPicTab</h1>
     </main>
