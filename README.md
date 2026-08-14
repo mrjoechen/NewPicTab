@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-   <img src="docs/assets/newpictab-cover-background-round.png" alt="NewPicTab Cover">
+   <img src="docs/assets/newpictab-cover-background-round.png" alt="NewPicTab Cover" width="560">
 </p>
 
 ## Overview

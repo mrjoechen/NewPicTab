@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-   <img src="docs/assets/newpictab-cover-background-round.png" alt="NewPicTab Cover">
+   <img src="docs/assets/newpictab-cover-background-round.png" alt="NewPicTab Cover" width="560">
 </p>
 
 NewPicTab 是一个以图片为主角的极简 Chrome 新标签页扩展。你可以为浏览器的 Tab 页面背景设置不同的图片源，并按需显示时间、日期、天气、搜索和快捷网址。
