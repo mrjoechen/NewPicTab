@@ -12,6 +12,19 @@ describe('dynamic viewport fallbacks', () => {
   });
 });
 
+describe('corner control reveal guardrails', () => {
+  it('reveals each 96px corner control for fine pointers and preserves touch and focus access', () => {
+    const css = readFileSync('src/newtab/styles.css', 'utf8');
+    expect(css).toMatch(/\.corner-control\s*\{[^}]*position:\s*fixed;[^}]*width:\s*96px;[^}]*height:\s*96px;/s);
+    expect(css).toMatch(/\.corner-control--left\s*\{[^}]*left:\s*0;/s);
+    expect(css).toMatch(/\.corner-control--right\s*\{[^}]*right:\s*0;/s);
+    expect(css).toMatch(/@media \(hover:\s*hover\) and \(pointer:\s*fine\)[\s\S]*\.corner-control__button\s*\{[^}]*opacity:\s*0;[^}]*translate:\s*0 6px;[^}]*pointer-events:\s*none;/s);
+    expect(css).toMatch(/\.corner-control:where\(:hover,\s*:focus-within\) \.corner-control__button\s*\{[^}]*opacity:\s*1;[^}]*translate:\s*0 0;[^}]*pointer-events:\s*auto;/s);
+    expect(css).toMatch(/@media \(hover:\s*none\),\s*\(pointer:\s*coarse\)[\s\S]*\.corner-control__button\s*\{[^}]*opacity:\s*1;[^}]*pointer-events:\s*auto;/s);
+    expect(css).toMatch(/@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.corner-control__button/);
+  });
+});
+
 describe('search and shortcut layout guardrails', () => {
   it('keeps the resting controls responsive, touchable, and reduced-motion safe', () => {
     const css = readFileSync('src/newtab/styles.css', 'utf8');
