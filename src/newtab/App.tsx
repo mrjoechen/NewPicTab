@@ -11,6 +11,7 @@ import { SearchBox } from './components/SearchBox';
 import { ShortcutDock } from './components/ShortcutDock';
 import { FirstRun } from './components/FirstRun';
 import { Icon } from './components/Icon';
+import { CornerControl } from './components/CornerControl';
 import { chromeRotationCursorStore } from './backgroundCursor';
 import { useBackgroundRotation, type BackgroundImage } from './hooks/useBackgroundRotation';
 import { createSourceOperations, listSource, RemoteCacheSession, type RemoteCacheLease } from './sourceClient';
@@ -334,9 +335,9 @@ export default function App() {
           </span>
         </div>
       )}
-      <div className="corner-control corner-control--left">
+      <CornerControl side="left">
         <button className="change-image-trigger corner-control__button icon-button" type="button" aria-label={settings.interfaceLanguage === 'zh-CN' ? '切换图片' : 'Change image'} title={settings.interfaceLanguage === 'zh-CN' ? '切换图片' : 'Change image'} onClick={() => void background.goNext()}><Icon name="refresh" /></button>
-      </div>
+      </CornerControl>
       {settingsReady && <FirstRun key={firstRunReset} hasConfiguredSource={settings.sources.length > 0} dismissRequest={firstRunDismissRequest} onOpenSources={() => setOpenSourcesRequest((value) => value + 1)} />}
       <h1 className="app-title">NewPicTab</h1>
     </main>

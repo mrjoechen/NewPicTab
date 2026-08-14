@@ -643,8 +643,8 @@ textarea {
   position: fixed;
   z-index: 8;
   bottom: 0;
-  width: 96px;
-  height: 96px;
+  width: 320px;
+  height: 320px;
 }
 
 .corner-control--left { left: 0; }
@@ -718,7 +718,8 @@ textarea {
     pointer-events: none;
   }
 
-  .corner-control:where(:hover, :focus-within) .corner-control__button {
+  .corner-control[data-visible="true"] .corner-control__button,
+  .corner-control:focus-within .corner-control__button {
     opacity: 1;
     translate: 0 0;
     pointer-events: auto;

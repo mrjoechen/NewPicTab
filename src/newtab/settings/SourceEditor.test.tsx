@@ -6,7 +6,7 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { JsonApiSourceConfig, SourceConfig, TmdbSourceConfig } from '../../domain/types';
-import type { ImageEntry } from '../../sources/adapter';
+import type { ImageEntry, ListImagesResult } from '../../sources/adapter';
 import { LocalSourceAdapter } from '../../sources/local';
 import { listLocal, putLocal } from '../../storage/imageDb';
 import { createSourceOperations } from '../sourceClient';
@@ -129,10 +129,12 @@ describe('SourceEditor lossless editing', () => {
     const source: SourceConfig = { id: 'webdav-connection', name: 'WebDAV', type: 'webdav', enabled: true, createdAt: 1, updatedAt: 1, url: 'https://dav.example/photos', username: 'user', password: 'secret', includeSubdirectories: false };
     const release = vi.fn();
     const cached = [{ id: 'one', sourceId: source.id, remoteCacheEntryId: 'one', remoteCacheFingerprint: 'fingerprint' }] as [{ id: string; sourceId: string; remoteCacheEntryId: string; remoteCacheFingerprint: string }];
+    let resolveList!: (value: ListImagesResult) => void;
+    const pendingList = new Promise<ListImagesResult>((resolve) => { resolveList = resolve; });
     const custom: SourceOperations = {
       ...operations,
       test: vi.fn(async () => ({ ok: true as const, protected: true as const, imageOrigins: [], count: 0, preview: [] })),
-      list: vi.fn(async () => ({ ok: true as const, images: cached })),
+      list: vi.fn(() => pendingList),
       materializePreview: vi.fn(async () => ({ entries: [{ id: 'one', sourceId: source.id, url: 'blob:webdav-preview' }], release, released: false } as unknown as RemoteCacheLease))
     };
     const view = render(<SourceEditor source={source} type="webdav" operations={custom} onSave={vi.fn()} onCancel={vi.fn()} onRefresh={vi.fn()} />);
@@ -142,6 +144,11 @@ describe('SourceEditor lossless editing', () => {
     expect(await screen.findByRole('dialog', { name: '选择 WebDAV 文件夹' })).toBeInTheDocument();
     expect(custom.list).not.toHaveBeenCalled();
     await userEvent.setup().click(screen.getByRole('button', { name: '确认选择' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '选择 WebDAV 文件夹' })).not.toBeInTheDocument());
+    expect(screen.getByText('正在加载所选文件夹的图片…')).toBeInTheDocument();
+    expect(screen.getByText('正在加载图片预览…')).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: '图片预览缩略图' })).not.toBeInTheDocument();
+    resolveList({ ok: true as const, images: cached });
     await waitFor(() => expect(screen.getByRole('img', { name: '图片预览缩略图' })).toHaveAttribute('src', 'blob:webdav-preview'));
     expect(screen.getByRole('status')).toHaveTextContent('已预览 1 张图片');
     expect(screen.getByRole('button', { name: '测试连接' })).toBeEnabled();
@@ -208,6 +215,43 @@ describe('SourceEditor lossless editing', () => {
     await waitFor(() => expect(screen.getAllByRole('img', { name: '图片预览缩略图' })).toHaveLength(7));
     expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ id: source.id, url: source.url, folderPath: [] }), { offset: 6, limit: 6 });
     expect(screen.queryByRole('button', { name: '加载更多预览' })).not.toBeInTheDocument();
+  });
+
+  it('ends WebDAV preview loading while a managed folder save is still pending', async () => {
+    const source: SourceConfig = { id: 'webdav-save-pending', name: 'WebDAV', type: 'webdav', enabled: true, createdAt: 1, updatedAt: 1, url: 'https://dav.example/photos/', username: 'user', password: 'secret', includeSubdirectories: false };
+    const initial = [{ id: 'initial', sourceId: source.id, remoteCacheEntryId: 'initial', remoteCacheFingerprint: 'fingerprint' }] as [{ id: string; sourceId: string; remoteCacheEntryId: string; remoteCacheFingerprint: string }];
+    const confirmed = [{ id: 'confirmed', sourceId: source.id, remoteCacheEntryId: 'confirmed', remoteCacheFingerprint: 'fingerprint' }] as [{ id: string; sourceId: string; remoteCacheEntryId: string; remoteCacheFingerprint: string }];
+    let listCall = 0;
+    const list = vi.fn(async () => {
+      listCall += 1;
+      return listCall === 1
+        ? { ok: true as const, images: initial }
+        : { ok: true as const, images: confirmed, nextOffset: 1, hasMore: true };
+    });
+    const materializePreview = vi.fn(async (entries: readonly ImageEntry[]) => ({
+      entries: entries.map((entry) => ({ id: entry.id, sourceId: entry.sourceId, url: `blob:${entry.id}` })),
+      release: vi.fn(),
+      released: false
+    } as unknown as RemoteCacheLease));
+    const test = vi.fn(async () => ({ ok: true as const, protected: true as const, imageOrigins: [], count: 0, preview: [], directories: [] }));
+    let resolveSave!: () => void;
+    const pendingSave = new Promise<void>((resolve) => { resolveSave = resolve; });
+    const onSave = vi.fn(() => pendingSave);
+    render(<SourceEditor source={source} type="webdav" initialMode="manage" operations={{ ...operations, test, list, materializePreview }} onSave={onSave} onCancel={vi.fn()} onRefresh={vi.fn()} />);
+    const user = userEvent.setup();
+
+    expect(await screen.findByRole('img', { name: '图片预览缩略图' })).toHaveAttribute('src', 'blob:initial');
+    await user.click(screen.getByRole('button', { name: '修改目标文件夹' }));
+    await user.click(await screen.findByRole('button', { name: '确认选择' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+
+    expect(screen.getByRole('img', { name: '图片预览缩略图' })).toHaveAttribute('src', 'blob:confirmed');
+    expect(screen.queryByText('正在加载更多预览…')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '加载更多预览' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('正在保存目标文件夹…');
+
+    resolveSave();
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('目标文件夹已更新'));
   });
 
   it('keeps WebDAV browsing temporary until the folder is confirmed', async () => {

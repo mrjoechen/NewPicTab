@@ -341,33 +341,39 @@ export function SourceEditor({ source, type, initialMode = 'edit', operations, o
     await browseWebDavPath(nextPath, pathLength === 0 ? '根目录' : nextPath.at(-1));
   };
 
-  const confirmWebDavDirectory = async () => {
-    if (draft instanceof Error || draft.type !== 'webdav' || !webDavDiscovery) return;
-    const selectedUrl = webDavDiscovery.rootUrl;
-    const selectedPath = webDavDiscovery.path;
-    setWebDavPath(selectedPath); setTested(false); setWebDavPickerBusy(true); setWebDavPickerStatus({ kind: 'info', message: '正在加载所选文件夹的图片…' });
-    const generation = beginPreviewRequest();
+  const loadConfirmedWebDavDirectory = async (confirmedDraft: Extract<SourceConfig, { type: 'webdav' }>, generation: number) => {
     try {
-      const previewResult = await materializeRemotePreview({ ...draft, url: selectedUrl, folderPath: selectedPath }, generation, { allowEmpty: true });
+      const previewResult = await materializeRemotePreview(confirmedDraft, generation, { allowEmpty: true });
       if (!requestIsCurrent(generation) || !previewResult) return;
-      if (!previewResult.ok) { setWebDavPickerStatus({ kind: 'error', message: `无法加载所选文件夹：${previewResult.message}` }); return; }
+      if (!previewResult.ok) { setStatus({ kind: 'error', message: `无法加载所选文件夹：${previewResult.message}` }); return; }
       setPreview(previewResult.entries);
       setPreviewCursor({ nextOffset: previewResult.nextOffset, hasMore: previewResult.hasMore });
       setTested(true);
-      setWebDavPickerOpen(false);
-      setWebDavPickerStatus(null);
+      setPreviewLoading(false);
       if (source && editorMode === 'manage') {
-        await onSave({ ...draft, url: selectedUrl, folderPath: selectedPath, updatedAt: Date.now() }, { stayOpen: true });
+        setStatus({ kind: 'info', message: '正在保存目标文件夹…' });
+        await onSave({ ...confirmedDraft, updatedAt: Date.now() }, { stayOpen: true });
         if (!requestIsCurrent(generation)) return;
         setStatus({ kind: 'success', message: previewResult.entries.length ? `目标文件夹已更新，已预览 ${previewResult.entries.length} 张图片。` : '目标文件夹已更新，当前文件夹没有可预览图片。' });
         return;
       }
       setStatus({ kind: 'success', message: webDavSuccessMessage(previewResult.entries.length) });
     } catch {
-      if (requestIsCurrent(generation)) setWebDavPickerStatus({ kind: 'error', message: '加载所选文件夹图片失败，请重试。' });
+      if (requestIsCurrent(generation)) setStatus({ kind: 'error', message: '加载所选文件夹图片失败，请重试。' });
     } finally {
-      if (requestIsCurrent(generation)) setWebDavPickerBusy(false);
+      if (requestIsCurrent(generation)) { setBusy(false); setPreviewLoading(false); }
     }
+  };
+
+  const confirmWebDavDirectory = () => {
+    if (draft instanceof Error || draft.type !== 'webdav' || !webDavDiscovery) return;
+    const selectedUrl = webDavDiscovery.rootUrl;
+    const selectedPath = webDavDiscovery.path;
+    const confirmedDraft: Extract<SourceConfig, { type: 'webdav' }> = { ...draft, url: selectedUrl, folderPath: selectedPath };
+    const generation = beginPreviewRequest();
+    setWebDavPath(selectedPath); setTested(false); setBusy(true); setPreviewLoading(true); setStatus({ kind: 'info', message: '正在加载所选文件夹的图片…' });
+    setWebDavPickerOpen(false); setWebDavPickerBusy(false); setWebDavPickerStatus(null);
+    void loadConfirmedWebDavDirectory(confirmedDraft, generation);
   };
 
   const openWebDavPicker = async () => {

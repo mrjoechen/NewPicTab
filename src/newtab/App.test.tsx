@@ -99,6 +99,47 @@ describe('App', () => {
       .toHaveClass('corner-control--right');
   });
 
+  it('hides both initially visible corner controls after five seconds even when the pointer moves while visible', () => {
+    vi.useFakeTimers();
+    try {
+      render(<App />);
+      const left = screen.getByRole('button', { name: '切换图片' }).closest('.corner-control')!;
+      const right = screen.getByRole('button', { name: '打开设置' }).closest('.corner-control')!;
+
+      expect(left).toHaveAttribute('data-visible', 'true');
+      expect(right).toHaveAttribute('data-visible', 'true');
+      act(() => { vi.advanceTimersByTime(4_000); });
+      fireEvent.pointerMove(left);
+      act(() => { vi.advanceTimersByTime(1_000); });
+
+      expect(left).toHaveAttribute('data-visible', 'false');
+      expect(right).toHaveAttribute('data-visible', 'false');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reveals only the hidden corner that receives pointer movement and hides it again five seconds later', () => {
+    vi.useFakeTimers();
+    try {
+      render(<App />);
+      const left = screen.getByRole('button', { name: '切换图片' }).closest('.corner-control')!;
+      const right = screen.getByRole('button', { name: '打开设置' }).closest('.corner-control')!;
+      act(() => { vi.advanceTimersByTime(5_000); });
+
+      fireEvent.pointerMove(left);
+
+      expect(left).toHaveAttribute('data-visible', 'true');
+      expect(right).toHaveAttribute('data-visible', 'false');
+      act(() => { vi.advanceTimersByTime(4_999); });
+      expect(left).toHaveAttribute('data-visible', 'true');
+      act(() => { vi.advanceTimersByTime(1); });
+      expect(left).toHaveAttribute('data-visible', 'false');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('shows the first-run invitation only after settings load and opens Sources without covering the resting page with a modal', async () => {
     render(<App />);
 
