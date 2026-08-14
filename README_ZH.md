@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-   <img src="docs/assets/newpictab-cover-background-round.png" alt="NewPicTab Cover" width="560">
+   <img src="docs/assets/newpictab-cover-background-round.png" alt="NewPicTab Cover" width="80%">
 </p>
 
 NewPicTab 是一个以图片为主角的极简 Chrome 新标签页扩展。你可以为浏览器的 Tab 页面背景设置不同的图片源，并按需显示时间、日期、天气、搜索和快捷网址。
@@ -123,7 +123,8 @@ NewPicTab 没有命令快捷键。manifest 只为内置的 TMDB 和天气服务�
 
 使用 TMDB 图片源需要你自己的 [API Read Access Token](https://www.themoviedb.org/settings/api)。配置前请阅读 [TMDB 官方入门指南](https://developer.themoviedb.org/v4/docs/getting-started)和[标识与归因规范](https://www.themoviedb.org/about/logos-attribution)。
 
-![TMDB official logo](public/assets/tmdb-blue-short.svg)
+<!-- ![TMDB official logo](public/assets/tmdb-blue-short.svg) -->
+<img src="public/assets/tmdb-blue-short.svg" width="20%">
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
 

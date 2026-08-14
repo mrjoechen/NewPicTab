@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-   <img src="docs/assets/newpictab-cover-background-round.png" alt="NewPicTab Cover" width="560">
+   <img src="docs/assets/newpictab-cover-background-round.png" alt="NewPicTab Cover" width="80%">
 </p>
 
 ## Overview
@@ -125,7 +125,9 @@ NewPicTab defines no keyboard commands. Its manifest declares exact static host 
 
 The TMDB image source requires your own [API Read Access Token](https://www.themoviedb.org/settings/api). Review TMDB's [getting started guide](https://developer.themoviedb.org/v4/docs/getting-started) and [logo and attribution requirements](https://www.themoviedb.org/about/logos-attribution) before configuring it.
 
-![TMDB official logo](public/assets/tmdb-blue-short.svg)
+<!-- ![TMDB official logo](public/assets/tmdb-blue-short.svg) -->
+
+<img src="public/assets/tmdb-blue-short.svg" width="20%">
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
 
