@@ -11,6 +11,10 @@
   <a href="README.md">English</a> ｜ <b>中文</b>
 </p>
 
+<p align="center">
+   <img src="docs/assets/newpictab-cover-background-round.png" alt="NewPicTab Cover">
+</p>
+
 NewPicTab 是一个以图片为主角的极简 Chrome 新标签页扩展。你可以为浏览器的 Tab 页面背景设置不同的图片源，并按需显示时间、日期、天气、搜索和快捷网址。
 
 > NewPicTab 采用 [MIT License](LICENSE) 开源，可自由使用、复制、修改和分发，包括商业用途；请保留版权与许可声明。

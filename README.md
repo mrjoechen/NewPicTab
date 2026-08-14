@@ -11,6 +11,10 @@
   <b>English</b> | <a href="README_ZH.md">中文</a>
 </p>
 
+<p align="center">
+   <img src="docs/assets/newpictab-cover-background-round.png" alt="NewPicTab Cover">
+</p>
+
 ## Overview
 
 NewPicTab is a minimal Chrome new-tab extension that keeps your images front and center. You can choose a different image source as the background for the new tab, then show only the clock, date, weather, search, and shortcuts you want.
