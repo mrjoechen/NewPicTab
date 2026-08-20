@@ -51,14 +51,14 @@ export function BackgroundStage({
   previous,
   transition,
   transitionMs,
-  kenBurnsMs = 45_000,
+  kenBurnsMs = 32_000,
   direction = 'next'
 }: BackgroundStageProps) {
   const reducedMotion = usePrefersReducedMotion();
   const effectiveTransition = reducedMotion ? 'none' : transition;
   const displayMotion = effectiveTransition === 'ken-burns' ? 'ken-burns' : 'none';
   const safeDuration = Number.isFinite(transitionMs) ? Math.max(0, transitionMs) : 0;
-  const safeDisplayDuration = Number.isFinite(kenBurnsMs) ? Math.max(1_000, kenBurnsMs) : 45_000;
+  const safeDisplayDuration = Number.isFinite(kenBurnsMs) ? Math.max(1_000, kenBurnsMs) : 32_000;
   const style: StageStyle = {
     '--background-transition-ms': `${safeDuration}ms`,
     '--background-display-ms': `${safeDisplayDuration}ms`

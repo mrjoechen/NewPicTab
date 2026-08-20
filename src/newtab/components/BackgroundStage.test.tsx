@@ -123,12 +123,28 @@ describe('BackgroundStage', () => {
     expect(stage).toHaveAttribute('data-display-motion', 'ken-burns');
   });
 
+  it('uses a 32-second default for the Ken Burns display motion', () => {
+    mockReducedMotion(false);
+    render(
+      <BackgroundStage
+        current={current}
+        previous={previous}
+        transition="ken-burns"
+        transitionMs={900}
+      />
+    );
+
+    expect(screen.getByTestId('background-stage').style.getPropertyValue('--background-display-ms')).toBe('32000ms');
+  });
+
   it('combines a short opacity cross-fade with a separate slow pan and scale animation', () => {
     const css = readFileSync('src/newtab/styles.css', 'utf8');
 
     expect(css).toMatch(/newpictab-fade-in var\(--background-transition-ms\)/);
     expect(css).toMatch(/newpictab-ken-burns-display var\(--background-display-ms\)[^;]*infinite alternate/);
     expect(css).toMatch(/@keyframes newpictab-ken-burns-display[\s\S]*translate3d\([^)]*%[\s\S]*scale\(/);
+    expect(css).toContain('from { transform: translate3d(-1.8%, -1%, 0) scale(1.025); }');
+    expect(css).toContain('to { transform: translate3d(1.8%, 1.1%, 0) scale(1.105); }');
     expect(css).not.toMatch(/background-stage:not\(\[data-transition="none"\]\)[\s\S]{0,120}will-change/);
     expect(css).toMatch(/data-display-motion="ken-burns"[\s\S]{0,180}will-change:\s*transform/);
   });
