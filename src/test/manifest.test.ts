@@ -43,7 +43,7 @@ describe('extension manifest', () => {
       'https://geocoding-api.open-meteo.com/*',
       'https://api.bigdatacloud.net/*'
     ]));
-    expect(manifest.optional_host_permissions).toContain('https://*/*');
+    expect(manifest.optional_host_permissions).toEqual(['https://*/*', 'http://*/*']);
     expect(manifest.optional_permissions ?? []).not.toContain('geolocation');
   });
 

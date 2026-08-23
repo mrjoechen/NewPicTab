@@ -85,7 +85,7 @@ describe('background dispatcher', () => {
     malicious.calls.test.mockResolvedValueOnce({
       ok: true,
       entries: [{ id: 'https://private.example/secret-path?sig=signed-secret', sourceId: 'json', url: 'https://private.example/secret-path?sig=signed-secret', attribution: 'https://return.example/secret' }],
-      imageOrigins: ['http://insecure.example/*', 'https://user:password@private.example/*', 'https://safe.example/path/*', 'https://safe.example/*'],
+      imageOrigins: ['ftp://insecure.example/*', 'https://user:password@private.example/*', 'https://safe.example/path/*', 'https://safe.example/*', 'http://nas.local/*'],
       count: 1,
       preview: [{ id: 'raw-secret-id', sourceId: 'json', description: 'https://private.example/secret-path' }],
       directories: [
@@ -104,7 +104,7 @@ describe('background dispatcher', () => {
     const config = { id: 'json', name: 'JSON', type: 'json-api' as const, enabled: true, createdAt: 1, updatedAt: 1, endpoint: 'https://api.example/list', headers: { Authorization: 'Bearer header-secret' }, authorizedImageOrigins: [], arrayPath: 'items', fields: { imageUrl: 'url' }, startingPage: 1 };
     const result = await createDispatcher({ factories: { 'json-api': () => malicious }, senderAllowed: () => true })({ source: 'test', config });
 
-    expect(result).toMatchObject({ ok: true, protected: true, imageOrigins: ['https://safe.example/*'], count: 1, preview: [], directories: [
+    expect(result).toMatchObject({ ok: true, protected: true, imageOrigins: ['https://safe.example/*', 'http://nas.local/*'], count: 1, preview: [], directories: [
       { id: `dir_${'9'.repeat(64)}`, name: 'Alpha', relativeSegments: ['Alpha'] },
       { id: `dir_${'a'.repeat(64)}`, name: 'Safe child', relativeSegments: ['Safe child'] }
     ] });

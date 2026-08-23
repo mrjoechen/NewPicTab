@@ -13,6 +13,7 @@ import type {
 } from './types';
 import { boundedShortcutDockScale, canonicalShortcutTitle, canonicalShortcutUrl, isSafeShortcutIcon, MAX_SHORTCUTS } from './shortcuts';
 import { validateSearchTemplate } from './search';
+import { canonicalRemoteUrl, isExactRemoteOriginPattern } from '../lib/remoteUrl';
 import { isSafeWebDavDirectoryName } from '../sources/webdavUrl';
 
 const TRANSITIONS = new Set(['fade', 'slide', 'ken-burns', 'none']);
@@ -52,16 +53,6 @@ function legacyClockScale(size: unknown, fallback: number): number {
   if (size === 'compact') return 0.55;
   if (size === 'large') return 1.18;
   return fallback;
-}
-
-function httpsUrl(value: unknown): string | undefined {
-  if (typeof value !== 'string') return undefined;
-  try {
-    const url = new URL(value);
-    return url.protocol === 'https:' && url.username === '' && url.password === '' ? url.toString() : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 function nonEmptyString(value: unknown): string | undefined {
@@ -192,7 +183,7 @@ function exactOrigins(value: unknown): string[] {
   const output = new Set<string>();
   for (const item of value) {
     if (typeof item !== 'string') continue;
-    try { const url = new URL(item); if (url.protocol === 'https:' && !url.username && !url.password && item === `${url.origin}/*`) output.add(item); } catch { /* ignore */ }
+    if (isExactRemoteOriginPattern(item)) output.add(item);
   }
   return [...output];
 }
@@ -227,7 +218,7 @@ function fieldMap(value: unknown): JsonApiSourceConfig['fields'] | undefined {
 function migrateDirectEntry(value: unknown): DirectEntry | undefined {
   if (!isRecord(value)) return undefined;
   const id = nonEmptyString(value.id);
-  const url = httpsUrl(value.url);
+  const url = canonicalRemoteUrl(value.url);
   if (!id || !url) return undefined;
   const label = nonEmptyString(value.label);
   return { id, url, ...(label ? { label } : {}) };
@@ -242,7 +233,7 @@ function migrateSource(value: unknown): SourceConfig | undefined {
     case 'local':
       return { ...base, type: 'local', includeSubdirectories: boolean(value.includeSubdirectories, false) };
     case 'webdav': {
-      const url = httpsUrl(value.url);
+      const url = canonicalRemoteUrl(value.url);
       const username = nonEmptyString(value.username);
       if (!url || !username || typeof value.password !== 'string') return undefined;
       return {
@@ -257,7 +248,7 @@ function migrateSource(value: unknown): SourceConfig | undefined {
       return { ...base, type: 'direct', entries };
     }
     case 'json-api': {
-      const endpoint = httpsUrl(value.endpoint);
+      const endpoint = canonicalRemoteUrl(value.endpoint);
       const arrayPath = nonEmptyString(value.arrayPath);
       const fields = fieldMap(value.fields);
       if (!endpoint || !arrayPath || !fields) return undefined;

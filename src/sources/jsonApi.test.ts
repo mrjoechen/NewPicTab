@@ -17,12 +17,19 @@ function response(body: unknown, status = 200): Response {
 }
 
 describe('JsonApiSourceAdapter', () => {
-  it('validates HTTPS endpoints and never includes header values in validation errors', () => {
+  it('validates HTTP or HTTPS endpoints and never includes header values in validation errors', () => {
     const adapter = new JsonApiSourceAdapter(async () => response({ data: { items: [] } }));
     const result = adapter.validateConfig({ ...source, endpoint: 'https://user:password@api.example.test/images' });
     expect(result).toMatchObject({ ok: false, error: { code: 'validation' } });
     expect(JSON.stringify(result)).not.toContain('very-secret-token');
-    expect(adapter.validateConfig({ ...source, authorizedImageOrigins: ['http://images.example.test/*'] })).toMatchObject({ ok: false });
+    expect(adapter.validateConfig({ ...source, endpoint: 'http://192.168.1.8:8787/images', authorizedImageOrigins: ['http://192.168.1.8:8787/*'] })).toEqual({ ok: true });
+    expect(adapter.validateConfig({ ...source, authorizedImageOrigins: ['ftp://images.example.test/*'] })).toMatchObject({ ok: false });
+  });
+
+  it('maps HTTP image and source-page URLs from an HTTP endpoint', async () => {
+    const adapter = new JsonApiSourceAdapter(async () => response({ data: { items: [{ image: { url: 'http://192.168.1.8/a.jpg' }, page: 'http://192.168.1.8/a' }] } }));
+    const result = await adapter.listImages({ ...source, endpoint: 'http://192.168.1.8/images', authorizedImageOrigins: ['http://192.168.1.8/*'] });
+    expect(result).toMatchObject({ ok: true, images: [{ url: 'http://192.168.1.8/a.jpg', sourceUrl: 'http://192.168.1.8/a' }] });
   });
 
   it('forwards static headers, preserves query parameters, and adds the configured page', async () => {
@@ -136,7 +143,7 @@ describe('JsonApiSourceAdapter', () => {
     const nonArray = new JsonApiSourceAdapter(async () => response({ data: { items: {} } }));
     await expect(nonArray.listImages(source)).resolves.toMatchObject({ error: { code: 'parse' } });
     const badItems = new JsonApiSourceAdapter(async () => response({ data: { items: [
-      { image: { url: 'http://insecure.example/a.jpg' } },
+      { image: { url: 'ftp://insecure.example/a.jpg' } },
       { image: { url: 'https://cdn.example/a.jpg' }, width: -1, height: 12 }
     ] } }));
     const badResult = await badItems.listImages(source);

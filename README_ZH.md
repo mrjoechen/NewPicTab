@@ -36,7 +36,7 @@ NewPicTab 是一个以图片为主角的极简 Chrome 新标签页扩展。你�
 
 ## 功能特色
 
-- 支持本地图片、WebDAV、HTTPS 图片 URL、通用 JSON API 和 TMDB。
+- 支持本地图片、WebDAV、HTTP 或 HTTPS 图片 URL、通用 JSON API 和 TMDB。
 - 支持顺序或随机换图，可在打开新标签页时切换，也可按时间间隔自动切换。
 - 提供淡入淡出、滑动、缓慢推移和无动效四种切换样式，并尊重系统的“减少动态效果”偏好。
 - 时间、日期、天气、搜索和快捷网址均可独立开关。
@@ -70,12 +70,12 @@ NewPicTab 是一个以图片为主角的极简 Chrome 新标签页扩展。你�
 | 类型 | 说明 |
 | --- | --- |
 | 本地图片 | 支持 JPEG、PNG、WebP、GIF 和 AVIF；图片仅保存在当前 Chrome profile 中。 |
-| WebDAV | 读取 HTTPS WebDAV 目录，可选择子目录；建议使用权限最小的应用专用密码。 |
-| 在线图片 URL | 添加一个或多个完整的 HTTPS 图片地址。 |
-| 通用 JSON API | 从 HTTPS API 响应中映射图片 URL、标题、作者等字段，可配置分页和请求头。 |
+| WebDAV | 读取 HTTP 或 HTTPS WebDAV 目录，可选择子目录；建议使用权限最小的应用专用密码，除局域网外请优先使用 HTTPS。 |
+| 在线图片 URL | 添加一个或多个完整的 HTTP 或 HTTPS 图片地址。 |
+| 通用 JSON API | 从 HTTP 或 HTTPS API 响应中映射图片 URL、标题、作者等字段，可配置分页和请求头。 |
 | TMDB | 使用你自己的 API Read Access Token 浏览电影或电视背景图；项目不内置凭据。 |
 
-用户配置的 WebDAV、在线图片 URL 和 JSON API 会在测试、预览或刷新时申请所需的精确 HTTPS origin 权限，而不是在安装时获得全网访问权。
+用户配置的 WebDAV、在线图片 URL 和 JSON API 会在测试、预览或刷新时申请所需的精确 HTTP 或 HTTPS origin 权限，而不是在安装时获得全网访问权。HTTP 主要用于局域网设备；通过 HTTP 发送的凭据和请求头不会加密。
 
 ## 隐私与权限
 
@@ -107,7 +107,7 @@ NewPicTab 管理的数据——包括设置、凭据、本地图片与缓存—�
 
 ## 权限明细
 
-NewPicTab 没有命令快捷键。manifest 只为内置的 TMDB 和天气服务声明精确静态主机权限；WebDAV、在线图片 URL 和通用 JSON API 则在用户测试、预览或刷新图片源时，按实际配置请求精确 HTTPS origin。
+NewPicTab 没有命令快捷键。manifest 只为内置的 TMDB 和天气服务声明精确静态主机权限；WebDAV、在线图片 URL 和通用 JSON API 则在用户测试、预览或刷新图片源时，按实际配置请求精确 HTTP 或 HTTPS origin。
 
 | 权限 | 类型 | 用途与触发时机 |
 | --- | --- | --- |
@@ -117,7 +117,7 @@ NewPicTab 没有命令快捷键。manifest 只为内置的 TMDB 和天气服务�
 | `favicon` | 安装时声明 | 通过 Chrome 内置 `_favicon` API 显示用户手动添加的快捷网址图标。 |
 | TMDB 两个精确 origin | 安装时 host 权限 | 仅用于 TMDB API 与官方图片 CDN；只在配置或使用 TMDB 图片源时发起网络请求。 |
 | Open-Meteo 两个精确 origin、BigDataCloud 一个精确 origin | 安装时 host 权限 | 用于城市搜索、天气和主动定位后的城市名称识别；只在用户使用对应功能时请求。 |
-| `https://*/*` | 可选 host 权限声明 | 只是可申请范围，安装时不授予。测试、预览或刷新 WebDAV、在线图片 URL 或通用 JSON API 时，NewPicTab 从用户配置解析并请求当次所需的精确 HTTPS origin。Chrome 可在扩展详情中撤销已授予的站点访问权。 |
+| `https://*/*` 和 `http://*/*` | 可选 host 权限声明 | 只是可申请范围，安装时不授予。测试、预览或刷新 WebDAV、在线图片 URL 或通用 JSON API 时，NewPicTab 从用户配置解析并请求当次所需的精确 HTTP 或 HTTPS origin。Chrome 可在扩展详情中撤销已授予的站点访问权。 |
 
 ## TMDB 声明
 

@@ -38,11 +38,21 @@ describe('WebDavSourceAdapter', () => {
     expect(adapter.validateConfig(source)).toEqual({ ok: true });
     for (const bad of [
       { ...source, name: '' }, { ...source, username: '' }, { ...source, username: 'ada:admin' }, { ...source, password: '' }, { ...source, password: 3 }, { ...source, includeSubdirectories: 'yes' },
-      { ...source, url: 'http://dav.example.test/photos' }, { ...source, url: 'https://a:b@dav.example.test/photos' },
+      { ...source, url: 'ftp://dav.example.test/photos' }, { ...source, url: 'https://a:b@dav.example.test/photos' },
       { ...source, url: 'https://dav.example.test/photos?capability=secret' }, { ...source, url: 'https://dav.example.test/photos#album' }
     ]) expect(adapter.validateConfig(bad)).toMatchObject({ ok: false, error: { code: 'validation' } });
     await adapter.listImages(source);
     expect((fetcher.mock.calls as unknown as Array<[string, RequestInit]>)[0]?.[0]).toBe('https://dav.example.test/photos/');
+  });
+
+  it('lists images from an HTTP WebDAV directory without user information', async () => {
+    const fetcher = vi.fn(async () => response(multistatus(item('/photos/lan.jpg'))));
+    const adapter = new WebDavSourceAdapter(fetcher);
+    const httpSource = { ...source, url: 'http://192.168.1.8:5005/photos' };
+    expect(adapter.validateConfig(httpSource)).toEqual({ ok: true });
+    const result = await adapter.listImages(httpSource);
+    expect(result.ok && result.images[0]?.url).toBe('http://192.168.1.8:5005/photos/lan.jpg');
+    expect((fetcher.mock.calls as unknown as Array<[string, RequestInit]>)[0]?.[0]).toBe('http://192.168.1.8:5005/photos/');
   });
 
   it('canonicalizes the WebDAV origin root to one trailing slash', async () => {

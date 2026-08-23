@@ -38,6 +38,15 @@ async function exercise(repository: CatalogRepository): Promise<void> {
 
 describe('catalog repositories', () => {
   it('keeps ordered fingerprint namespaces in memory', async () => exercise(new MemoryCatalogRepository()));
+  it('persists credential-free HTTP Direct image URLs without query or fragment', async () => {
+    const repository = new MemoryCatalogRepository();
+    const stored: CatalogRecord = {
+      ...record('lan-direct', 'a'.repeat(64)),
+      images: [{ id: 'lan', sourceId: 'lan-direct', url: 'http://192.168.1.8/photo.jpg' }]
+    };
+    await repository.put(stored);
+    await expect(repository.get('lan-direct', stored.fingerprint)).resolves.toEqual(stored);
+  });
   it('rejects protected records with query-bearing URLs before they reach storage', async () => {
     const repository = new MemoryCatalogRepository();
     const unsafe = { ...record('protected', 'd'.repeat(64)), sourceType: 'json-api' as const, images: [{ id: 'one', sourceId: 'protected', url: 'https://internal.example/image.jpg?sig=private' }] as CatalogRecord['images'] };

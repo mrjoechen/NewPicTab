@@ -4,6 +4,7 @@ import type { WebDavSourceConfig } from '../domain/types';
 import type { ConfigValidationResult, ConnectionTestResult, ImageEntry, ListImagesResult, SafeWebDavDirectory, SourceAdapter, SourceError } from './adapter';
 import { HttpRequestError, fetchText, type SourceFetch } from './http';
 import { opaqueImageId, sha256Hex } from '../lib/crypto';
+import { isSafeRemoteUrl } from '../lib/remoteUrl';
 import { canonicalWebDavChildDirectory, canonicalWebDavDirectory, decodeSafeWebDavPathSegment, isSafeWebDavDirectoryName } from './webdavUrl';
 
 export type WebDavFetch = SourceFetch;
@@ -169,7 +170,7 @@ function davChildren(parent: XmlElement, name: string): XmlElement[] {
 function firstDav(parent: XmlElement | undefined, name: string): XmlElement | undefined { return parent ? davChildren(parent, name)[0] : undefined; }
 function textOf(element: XmlElement | undefined): string | undefined { const value = element?.textContent?.trim(); return value || undefined; }
 function elementName(element: XmlElement): string { return (element.localName || element.tagName).split(':').pop()!.toLowerCase(); }
-function safeUrl(url: URL): boolean { return url.protocol === 'https:' && !url.username && !url.password; }
+function safeUrl(url: URL): boolean { return isSafeRemoteUrl(url); }
 function configuredDirectoryUrl(config: WebDavSourceConfig): CanonicalUrl | undefined {
   const combined = canonicalWebDavChildDirectory(config.url, config.folderPath ?? []);
   return combined ? canonicalWebDavDirectory(combined) : undefined;
@@ -223,7 +224,7 @@ function safeConfiguredUrl(value: string, folderPath: unknown): boolean {
   if (folderPath !== undefined && (!Array.isArray(folderPath) || !folderPath.every((segment) => typeof segment === 'string' && isSafeWebDavDirectoryName(segment)))) return false;
   return Boolean(canonicalWebDavChildDirectory(value, Array.isArray(folderPath) ? folderPath : []));
 }
-function validationError(): SourceError { return { code: 'validation', message: 'WebDAV sources require a name, an HTTPS directory URL without user information, query, or fragment, username, password, and recursion setting.' }; }
+function validationError(): SourceError { return { code: 'validation', message: 'WebDAV sources require a name, an HTTP or HTTPS directory URL without user information, query, or fragment, username, password, and recursion setting.' }; }
 function cancelledError(): SourceError { return { code: 'network', message: 'The WebDAV request was cancelled.', retryable: true }; }
 function succeeded(images: ImageEntry[], warnings: SourceError[]): ListImagesResult { return { ok: true, images: images as [ImageEntry, ...ImageEntry[]], ...(warnings.length ? { warnings } : {}) }; }
 function failed(error: SourceError, warnings?: SourceError[]): ListImagesResult { return { ok: false, images: [], error, ...(warnings?.length ? { warnings } : {}) }; }

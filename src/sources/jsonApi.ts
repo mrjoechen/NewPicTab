@@ -1,4 +1,5 @@
 import type { JsonApiSourceConfig } from '../domain/types';
+import { isExactRemoteOriginPattern, isSafeRemoteUrl } from '../lib/remoteUrl';
 import type { ConfigValidationResult, ConnectionTestResult, ImageDimensions, ImageEntry, ListImagesResult, SourceAdapter, SourceError } from './adapter';
 import { HttpRequestError, fetchJson } from './http';
 import { getJsonPath, parseJsonPath } from './jsonPath';
@@ -65,7 +66,7 @@ export class JsonApiSourceAdapter implements SourceAdapter<JsonApiSourceConfig> 
         }
       }
       if (!this.isCurrent(config.id, generation) || controller.signal.aborted) return failed(cancelledError());
-      return images.length ? succeeded(images, warnings) : failed({ code: 'empty', message: 'No valid HTTPS images were found in the response.' }, warnings);
+      return images.length ? succeeded(images, warnings) : failed({ code: 'empty', message: 'No valid HTTP or HTTPS images were found in the response.' }, warnings);
     } finally { this.unregister(config.id, controller); }
   }
   private register(sourceId: string): AbortController { const controller = new AbortController(); const set = this.controllers.get(sourceId) ?? new Set(); set.add(controller); this.controllers.set(sourceId, set); return controller; }
@@ -79,14 +80,14 @@ async function mapItem(item: unknown, config: JsonApiSourceConfig, index: number
   if (!item || typeof item !== 'object') return { error: itemError('imageUrl', index, 'missing') };
   const rawImageUrl = getJsonPath(item, config.fields.imageUrl);
   if (rawImageUrl === undefined || rawImageUrl === null || rawImageUrl === '') return { error: itemError('imageUrl', index, 'missing') };
-  if (typeof rawImageUrl !== 'string' || !isSafeHttpsUrl(rawImageUrl)) return { error: itemError('imageUrl', index, 'invalid-url') };
+  if (typeof rawImageUrl !== 'string' || !isSafeRemoteUrl(rawImageUrl)) return { error: itemError('imageUrl', index, 'invalid-url') };
   const imageUrl = new URL(rawImageUrl).href;
   const dimensions = mappedDimensions(item, config);
   if ('error' in dimensions) return { error: itemError('width-height', index, 'invalid-dimensions') };
   const sourcePage = optionalStringAt(item, config.fields.sourcePage);
   const warnings: SourceError[] = [];
-  const sourceUrl = sourcePage === undefined ? undefined : isSafeHttpsUrl(sourcePage) ? new URL(sourcePage).href : undefined;
-  if (sourcePage !== undefined && !sourceUrl) warnings.push({ code: 'validation', message: 'A response item has an invalid HTTPS source page.', field: 'sourcePage', itemIndex: index, reason: 'invalid-url' });
+  const sourceUrl = sourcePage === undefined ? undefined : isSafeRemoteUrl(sourcePage) ? new URL(sourcePage).href : undefined;
+  if (sourcePage !== undefined && !sourceUrl) warnings.push({ code: 'validation', message: 'A response item has an invalid HTTP or HTTPS source page.', field: 'sourcePage', itemIndex: index, reason: 'invalid-url' });
   const description = boundedRemoteText(optionalStringAt(item, config.fields.title));
   const author = boundedRemoteText(optionalStringAt(item, config.fields.author));
   const attribution = boundedRemoteText(author && sourceUrl ? `${author} — ${sourceUrl}` : author ?? sourceUrl);
@@ -107,18 +108,17 @@ function mappedDimensions(item: object, config: JsonApiSourceConfig): { dimensio
 function optionalStringAt(value: object, path: string | undefined): string | undefined { return path === undefined ? undefined : optionalString(getJsonPath(value, path)); }
 function optionalString(value: unknown): string | undefined { return typeof value === 'string' && value.trim().length > 0 ? value : undefined; }
 function optionalScalarAt(value: object, path: string | undefined): string | undefined { if (path === undefined) return undefined; const valueAtPath = getJsonPath(value, path); return (typeof valueAtPath === 'string' && valueAtPath.trim().length > 0) || (typeof valueAtPath === 'number' && Number.isFinite(valueAtPath)) ? String(valueAtPath) : undefined; }
-function isJsonApiConfig(value: unknown): value is JsonApiSourceConfig { if (!value || typeof value !== 'object') return false; const config = value as Partial<JsonApiSourceConfig>; return config.type === 'json-api' && validBase(config) && typeof config.endpoint === 'string' && isSafeHttpsUrl(config.endpoint) && validAuthorizedOrigins(config.authorizedImageOrigins) && typeof config.startingPage === 'number' && Number.isSafeInteger(config.startingPage) && config.startingPage > 0 && validHeaders(config.headers) && typeof config.arrayPath === 'string' && validPath(config.arrayPath) && validFields(config.fields) && (config.pageParam === undefined || (typeof config.pageParam === 'string' && config.pageParam.trim().length > 0)); }
-function validAuthorizedOrigins(value: unknown): value is string[] { return Array.isArray(value) && value.every((pattern) => { if (typeof pattern !== 'string') return false; try { const url = new URL(pattern.slice(0, -1)); return url.protocol === 'https:' && !url.username && !url.password && pattern.endsWith('/*') && pattern === `${url.origin}/*`; } catch { return false; } }); }
+function isJsonApiConfig(value: unknown): value is JsonApiSourceConfig { if (!value || typeof value !== 'object') return false; const config = value as Partial<JsonApiSourceConfig>; return config.type === 'json-api' && validBase(config) && typeof config.endpoint === 'string' && isSafeRemoteUrl(config.endpoint) && validAuthorizedOrigins(config.authorizedImageOrigins) && typeof config.startingPage === 'number' && Number.isSafeInteger(config.startingPage) && config.startingPage > 0 && validHeaders(config.headers) && typeof config.arrayPath === 'string' && validPath(config.arrayPath) && validFields(config.fields) && (config.pageParam === undefined || (typeof config.pageParam === 'string' && config.pageParam.trim().length > 0)); }
+function validAuthorizedOrigins(value: unknown): value is string[] { return Array.isArray(value) && value.every(isExactRemoteOriginPattern); }
 function validBase(config: Partial<JsonApiSourceConfig>): boolean { return typeof config.id === 'string' && config.id.trim().length > 0 && typeof config.name === 'string' && config.name.trim().length > 0 && typeof config.enabled === 'boolean' && Number.isFinite(config.createdAt) && Number.isFinite(config.updatedAt); }
 function validHeaders(value: unknown): value is Record<string, string> { if (!value || typeof value !== 'object' || Array.isArray(value) || !Object.values(value).every((header) => typeof header === 'string')) return false; try { new Headers(value as Record<string, string>); return true; } catch { return false; } }
 function validFields(value: unknown): value is JsonApiSourceConfig['fields'] { return !!value && typeof value === 'object' && typeof (value as { imageUrl?: unknown }).imageUrl === 'string' && Object.values(value as Record<string, unknown>).every((path) => path === undefined || (typeof path === 'string' && validPath(path))); }
 function validPath(path: string): boolean { try { parseJsonPath(path); return true; } catch { return false; } }
-function isSafeHttpsUrl(value: string): boolean { try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password; } catch { return false; } }
 function succeeded(images: ImageEntry[], warnings: SourceError[]): ListImagesResult { return { ok: true, images: images as [ImageEntry, ...ImageEntry[]], ...(warnings.length ? { warnings } : {}) }; }
 function failed(error: SourceError, warnings?: SourceError[]): ListImagesResult { return { ok: false, images: [], error, ...(warnings?.length ? { warnings } : {}) }; }
-function validationError(): SourceError { return { code: 'validation', message: 'JSON API sources require a valid HTTPS endpoint and safe field mappings.' }; }
+function validationError(): SourceError { return { code: 'validation', message: 'JSON API sources require a valid HTTP or HTTPS endpoint and safe field mappings.' }; }
 function cancelledError(): SourceError { return { code: 'network', message: 'The image service request was cancelled.', retryable: true }; }
-function itemError(field: SourceError['field'], itemIndex: number, reason: NonNullable<SourceError['reason']>): SourceError { return { code: 'validation', message: reason === 'missing' ? 'A response item is missing its image URL.' : reason === 'invalid-url' ? 'A response item has an invalid HTTPS image URL.' : 'A response item has invalid width or height.', field, itemIndex, reason }; }
+function itemError(field: SourceError['field'], itemIndex: number, reason: NonNullable<SourceError['reason']>): SourceError { return { code: 'validation', message: reason === 'missing' ? 'A response item is missing its image URL.' : reason === 'invalid-url' ? 'A response item has an invalid HTTP or HTTPS image URL.' : 'A response item has invalid width or height.', field, itemIndex, reason }; }
 function httpError(error: unknown): SourceError { if (error instanceof SyntaxError) return parseError('The image service returned invalid JSON.'); if (error instanceof HttpRequestError) return error.kind === 'too-large' ? { code: 'parse', message: 'The image service response is too large.' } : { code: 'network', message: error.kind === 'redirect' ? 'The image service returned an unsupported redirect.' : 'The image service could not be reached.', retryable: true }; return { code: 'network', message: 'The image service could not be reached.', retryable: true }; }
 function parseError(message: string): SourceError { return { code: 'parse', message }; }
 function responseError(response: Response): SourceError { if (response.status === 401 || response.status === 403) return { code: 'auth', message: 'The image service rejected the request credentials.' }; if (response.status === 429) return { code: 'rate-limit', message: 'The image service rate limit was reached.', retryable: true, retryAfterMs: retryAfter(response) }; return { code: 'http', status: response.status, message: 'The image service returned an HTTP error.', retryable: response.status >= 500 }; }

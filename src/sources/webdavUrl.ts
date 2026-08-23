@@ -1,3 +1,5 @@
+import { isSafeRemoteUrl } from '../lib/remoteUrl';
+
 export const MAX_WEB_DAV_DIRECTORY_NAME_LENGTH = 120;
 
 export interface CanonicalWebDavDirectory {
@@ -9,7 +11,7 @@ export interface CanonicalWebDavDirectory {
 export function canonicalWebDavDirectory(input: string | URL): CanonicalWebDavDirectory | undefined {
   let url: URL;
   try { url = new URL(input.toString()); } catch { return undefined; }
-  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) return undefined;
+  if (!isSafeRemoteUrl(url) || url.search || url.hash) return undefined;
   const segments: string[] = [];
   for (const raw of url.pathname.split('/')) {
     if (!raw) continue;

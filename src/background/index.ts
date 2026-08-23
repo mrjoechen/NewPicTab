@@ -12,6 +12,7 @@ import { OpenMeteoService, WeatherServiceError, reverseGeocodeLocation } from '.
 import { getAllLocal, removeLocal } from '../lib/chrome';
 import { AUXILIARY_STORAGE_MAINTENANCE_LOCK, withNewPicTabDataMutationLock } from '../storage/maintenance';
 import { boundedRemoteText } from '../sources/text';
+import { isExactRemoteOriginPattern } from '../lib/remoteUrl';
 
 type RemoteSourceType = Exclude<SourceType, 'local'>;
 type AnyAdapter = SourceAdapter<any> & { getMetadata?: (config: any) => TmdbMetadata };
@@ -343,7 +344,7 @@ function safeText(value: string | undefined): string | undefined { return value 
 
 function sanitizeProtectedConnection(result: import('../sources/adapter').ConnectionTestResult, sourceId: string): import('../sources/adapter').ProtectedConnectionTestResult {
   const raw = result as unknown as Record<string, unknown>;
-  const imageOrigins = Array.isArray(raw.imageOrigins) ? [...new Set(raw.imageOrigins.filter(exactHttpsOriginPattern))] : [];
+  const imageOrigins = Array.isArray(raw.imageOrigins) ? [...new Set(raw.imageOrigins.filter(isExactRemoteOriginPattern))] : [];
   const count = typeof raw.count === 'number' && Number.isSafeInteger(raw.count) && raw.count >= 0 ? Math.min(raw.count, 1_000_000) : 0;
   const preview = Array.isArray(raw.preview) ? raw.preview.flatMap((value) => safeProtectedPreview(value, sourceId)) : [];
   const directories = Array.isArray(raw.directories) ? safeWebDavDirectories(raw.directories) : undefined;
@@ -385,11 +386,6 @@ function safeDirectorySegment(value: string): boolean {
 }
 
 function isSourceErrorCode(value: unknown): value is SourceError['code'] { return typeof value === 'string' && ['validation', 'permission', 'auth', 'network', 'http', 'rate-limit', 'empty', 'parse', 'decode', 'unknown'].includes(value); }
-
-function exactHttpsOriginPattern(value: unknown): value is string {
-  if (typeof value !== 'string' || !value.endsWith('/*')) return false;
-  try { const url = new URL(value.slice(0, -1)); return url.protocol === 'https:' && !url.username && !url.password && value === `${url.origin}/*`; } catch { return false; }
-}
 
 function safeProtectedPreview(value: unknown, sourceId: string): import('../sources/adapter').SafeImagePreview[] {
   if (!value || typeof value !== 'object') return [];

@@ -38,7 +38,7 @@ NewPicTab is a minimal Chrome new-tab extension that keeps your images front and
 
 ## Features
 
-- Use local images, WebDAV, direct HTTPS image URLs, generic JSON APIs, or TMDB.
+- Use local images, WebDAV, direct HTTP or HTTPS image URLs, generic JSON APIs, or TMDB.
 - Browse images sequentially or randomly, changing them on each new tab or at a set interval.
 - Choose from fade, slide, Ken Burns, or no transition; NewPicTab respects the system's reduced-motion preference.
 - Enable or disable the clock, date, weather, search, and shortcuts independently.
@@ -72,12 +72,12 @@ If drag-and-drop is unavailable in your Chrome environment, unzip the package fi
 | Type | Description |
 | --- | --- |
 | Local images | Supports JPEG, PNG, WebP, GIF, and AVIF; files stay in the current Chrome profile. |
-| WebDAV | Reads an HTTPS WebDAV directory with optional subdirectories; use a least-privilege app password. |
-| Direct image URLs | Add one or more complete HTTPS image URLs. |
-| Generic JSON API | Map image URLs, titles, authors, and other fields from an HTTPS API response, with optional pagination and request headers. |
+| WebDAV | Reads an HTTP or HTTPS WebDAV directory with optional subdirectories; use a least-privilege app password, and prefer HTTPS except on a local network. |
+| Direct image URLs | Add one or more complete HTTP or HTTPS image URLs. |
+| Generic JSON API | Map image URLs, titles, authors, and other fields from an HTTP or HTTPS API response, with optional pagination and request headers. |
 | TMDB | Browse movie or TV backdrops with your own API Read Access Token; no credentials are bundled. |
 
-For user-configured WebDAV, direct URL, and JSON API sources, NewPicTab requests access only to the exact HTTPS origins needed when you test, preview, or refresh the source. It does not receive access to the entire web at installation.
+For user-configured WebDAV, direct URL, and JSON API sources, NewPicTab requests access only to the exact HTTP or HTTPS origins needed when you test, preview, or refresh the source. It does not receive access to the entire web at installation. HTTP is intended for local network devices; credentials and request headers sent over HTTP are not encrypted.
 
 ## Privacy and permissions
 
@@ -109,7 +109,7 @@ City searches send the text you enter directly to Open-Meteo's geocoding service
 
 ## Permission details
 
-NewPicTab defines no keyboard commands. Its manifest declares exact static host permissions only for its built-in TMDB and weather integrations. WebDAV, direct image URLs, and generic JSON APIs request access to the exact configured HTTPS origin only when you test, preview, or refresh that source.
+NewPicTab defines no keyboard commands. Its manifest declares exact static host permissions only for its built-in TMDB and weather integrations. WebDAV, direct image URLs, and generic JSON APIs request access to the exact configured HTTP or HTTPS origin only when you test, preview, or refresh that source.
 
 | Permission | Type | Purpose and activation |
 | --- | --- | --- |
@@ -119,7 +119,7 @@ NewPicTab defines no keyboard commands. Its manifest declares exact static host 
 | `favicon` | Declared at installation | Uses Chrome's built-in `_favicon` API for shortcuts that you add manually. |
 | Two exact TMDB origins | Installation host permissions | Used only for the TMDB API and official image CDN when configuring or using a TMDB source. |
 | Two exact Open-Meteo origins and one exact BigDataCloud origin | Installation host permissions | Used for city search, weather, and city-name resolution after explicit location access. |
-| `https://*/*` | Optional host-permission declaration | Defines only what NewPicTab may request; it is not granted at installation. NewPicTab derives and requests the exact HTTPS origin needed when you test, preview, or refresh WebDAV, a direct image URL, or a generic JSON API. Chrome can revoke granted site access from the extension details page. |
+| `https://*/*` and `http://*/*` | Optional host-permission declaration | Defines only what NewPicTab may request; it is not granted at installation. NewPicTab derives and requests the exact HTTP or HTTPS origin needed when you test, preview, or refresh WebDAV, a direct image URL, or a generic JSON API. Chrome can revoke granted site access from the extension details page. |
 
 ## TMDB attribution
 

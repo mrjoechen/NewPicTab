@@ -24,10 +24,11 @@ describe('DirectSourceAdapter', () => {
     expect(probe).not.toHaveBeenCalled();
   });
 
-  it('validates only HTTPS direct URLs without user info', () => {
+  it('validates HTTP or HTTPS direct URLs without user info', () => {
     const adapter = new DirectSourceAdapter(async () => {});
     expect(adapter.validateConfig(source)).toEqual({ ok: true });
-    expect(adapter.validateConfig({ ...source, entries: [{ id: 'x', url: 'http://example.com/a' }] })).toMatchObject({ ok: false, error: { code: 'validation' } });
+    expect(adapter.validateConfig({ ...source, entries: [{ id: 'x', url: 'http://192.168.1.8/a.jpg' }] })).toEqual({ ok: true });
+    expect(adapter.validateConfig({ ...source, entries: [{ id: 'x', url: 'ftp://example.com/a' }] })).toMatchObject({ ok: false, error: { code: 'validation' } });
     expect(adapter.validateConfig({ ...source, entries: [{ id: 'x', url: 'https://user:secret@example.com/a' }] })).toMatchObject({ ok: false, error: { code: 'validation' } });
   });
 

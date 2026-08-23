@@ -54,6 +54,7 @@ describe('SourceEditor lossless editing', () => {
   it('builds canonical root WebDAV directory URLs without a double slash', () => {
     expect(buildWebDavDirectoryUrl('https://dav.example/', [])).toBe('https://dav.example/');
     expect(buildWebDavDirectoryUrl('https://dav.example/', ['Family'])).toBe('https://dav.example/Family/');
+    expect(buildWebDavDirectoryUrl('http://192.168.1.8:5005/photos', ['Family'])).toBe('http://192.168.1.8:5005/photos/Family/');
   });
 
   it('rejects WebDAV query and fragment capabilities while preserving port, Unicode, and long base segments', () => {
@@ -80,6 +81,15 @@ describe('SourceEditor lossless editing', () => {
     expect(screen.getByLabelText('WebDAV 地址')).toHaveValue(source.url);
     expect(permissionRequest).not.toHaveBeenCalled();
     expect(test).not.toHaveBeenCalled();
+  });
+
+  it('accepts an HTTP WebDAV directory and warns that credentials travel in plaintext', async () => {
+    const source: SourceConfig = { id: 'webdav-http', name: 'NAS', type: 'webdav', enabled: true, createdAt: 1, updatedAt: 1, url: 'http://192.168.1.8:5005/photos', username: 'user', password: 'secret', includeSubdirectories: false };
+    const test = vi.fn(async () => ({ ok: true as const, protected: true as const, imageOrigins: ['http://192.168.1.8:5005/*'], count: 0, preview: [], directories: [] }));
+    render(<SourceEditor source={source} type="webdav" operations={{ ...operations, test }} onSave={vi.fn()} onCancel={vi.fn()} onRefresh={vi.fn()} />);
+    expect(screen.getByText('HTTP 会明文发送用户名和密码，建议仅用于局域网。')).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole('button', { name: '测试连接' }));
+    await waitFor(() => expect(test).toHaveBeenCalledWith(expect.objectContaining({ url: 'http://192.168.1.8:5005/photos/' })));
   });
 
   it('shows a per-image loading placeholder until a preview thumbnail finishes decoding', async () => {

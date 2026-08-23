@@ -1,4 +1,5 @@
 import { withChromeCallbackDeadline } from './chromeCallback';
+import { exactRemoteOriginPattern } from './remoteUrl';
 
 export const PERMISSION_REQUEST_CALLBACK_DEADLINE_MS = 15_000;
 
@@ -12,15 +13,15 @@ type PermissionRequestResult = 'granted' | 'denied' | 'failed';
 
 /** Request the one host permission needed after a user-initiated action. */
 export async function requestOriginPermission(input: string): Promise<OriginPermissionResult> {
-  const origin = exactHttpsOrigin(input);
-  if (!origin) return { ok: false, error: { code: 'validation', message: 'A permission can only be requested for an HTTPS URL without user information.' } };
+  const origin = exactRemoteOriginPattern(input);
+  if (!origin) return { ok: false, error: { code: 'validation', message: 'A permission can only be requested for an HTTP or HTTPS URL without user information.' } };
   const request = await requestPermissions([origin]);
   const granted = request === 'granted' || await containsPermissions([origin]);
   return granted ? { ok: true, origin } : denied();
 }
 
 export async function hasOriginPermission(input: string): Promise<boolean> {
-  const origin = exactHttpsOrigin(input);
+  const origin = exactRemoteOriginPattern(input);
   return Boolean(origin && await containsPermissions([origin]));
 }
 
@@ -42,11 +43,11 @@ export async function requestOriginPermissions(inputs: readonly string[]): Promi
   const origins: string[] = [];
   const seen = new Set<string>();
   for (const input of inputs) {
-    const origin = exactHttpsOrigin(input);
-    if (!origin) return { ok: false, error: { code: 'validation', message: 'Permissions require HTTPS URLs without user information.' } };
+    const origin = exactRemoteOriginPattern(input);
+    if (!origin) return { ok: false, error: { code: 'validation', message: 'Permissions require HTTP or HTTPS URLs without user information.' } };
     if (!seen.has(origin)) { seen.add(origin); origins.push(origin); }
   }
-  if (!origins.length) return { ok: false, error: { code: 'validation', message: 'At least one HTTPS origin is required.' } };
+  if (!origins.length) return { ok: false, error: { code: 'validation', message: 'At least one HTTP or HTTPS origin is required.' } };
   const request = await requestPermissions(origins);
   return request === 'granted' || await containsPermissions(origins) ? { ok: true, origins } : denied();
 }
@@ -79,13 +80,6 @@ function containsPermissions(origins: string[]): Promise<boolean> {
       complete(Boolean(contains) && !failed);
     });
   }, false);
-}
-
-function exactHttpsOrigin(input: string): string | undefined {
-  try {
-    const url = new URL(input);
-    return url.protocol === 'https:' && !url.username && !url.password ? `${url.origin}/*` : undefined;
-  } catch { return undefined; }
 }
 
 function denied(): Extract<OriginPermissionResult, { ok: false }> { return { ok: false, error: { code: 'permission-denied', message: '未获得目标域名访问权限，请在浏览器权限窗口中允许后重试。' } }; }

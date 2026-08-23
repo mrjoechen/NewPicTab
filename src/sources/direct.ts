@@ -1,4 +1,5 @@
 import type { DirectSourceConfig } from '../domain/types';
+import { isSafeRemoteUrl } from '../lib/remoteUrl';
 import type { ConfigValidationResult, ConnectionTestResult, ImageEntry, ListImagesResult, SourceAdapter, SourceError } from './adapter';
 import { HttpRequestError, cancelBody, fetchResponse } from './http';
 
@@ -106,11 +107,10 @@ function isDirectConfig(value: unknown): value is DirectSourceConfig {
   return config.type === 'direct' && validBase(config) && Array.isArray(entries) && entries.length > 0 && entries.length <= MAX_ENTRIES
     && new Set(entries.map((entry) => entry?.id)).size === entries.length
     && entries.every((entry) => !!entry && typeof entry === 'object' && typeof entry.id === 'string' && entry.id.trim().length > 0
-      && typeof entry.url === 'string' && isSafeHttpsUrl(entry.url) && (entry.label === undefined || typeof entry.label === 'string'));
+      && typeof entry.url === 'string' && isSafeRemoteUrl(entry.url) && (entry.label === undefined || typeof entry.label === 'string'));
 }
 function validBase(config: Partial<DirectSourceConfig>): boolean { return typeof config.id === 'string' && config.id.trim().length > 0 && typeof config.name === 'string' && config.name.trim().length > 0 && typeof config.enabled === 'boolean' && Number.isFinite(config.createdAt) && Number.isFinite(config.updatedAt); }
-function isSafeHttpsUrl(value: string): boolean { try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password; } catch { return false; } }
-function validationError(): SourceError { return { code: 'validation', message: 'Direct sources require 1–200 uniquely identified HTTPS image URLs without user information.' }; }
+function validationError(): SourceError { return { code: 'validation', message: 'Direct sources require 1–200 uniquely identified HTTP or HTTPS image URLs without user information.' }; }
 function cancelledError(): SourceError { return { code: 'network', message: 'The direct image request was cancelled.', retryable: true }; }
 function succeeded(images: ImageEntry[], warnings: SourceError[]): ListImagesResult { return { ok: true, images: images as [ImageEntry, ...ImageEntry[]], ...(warnings.length ? { warnings } : {}) }; }
 function failed(error: SourceError, warnings?: SourceError[]): ListImagesResult { return { ok: false, images: [], error, ...(warnings?.length ? { warnings } : {}) }; }

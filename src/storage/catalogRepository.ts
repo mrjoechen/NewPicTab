@@ -1,5 +1,6 @@
 import type { ImageEntry, SourceError } from '../sources/adapter';
 import type { SourceType } from '../domain/types';
+import { isSafeRemoteUrl } from '../lib/remoteUrl';
 import { hasBoundedRemoteText } from '../sources/text';
 
 const DATABASE_NAME = 'newpictab-remote-catalog';
@@ -73,7 +74,7 @@ function urlBearingValues(entry: ImageEntry): string[] {
   if (entry.attribution) values.push(...entry.attribution.match(/https?:\/\/[^\s]+/gi) ?? []);
   return values;
 }
-function safePersistedUrl(value: string): boolean { try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash; } catch { return false; } }
+function safePersistedUrl(value: string): boolean { try { const url = new URL(value); return isSafeRemoteUrl(url) && !url.search && !url.hash; } catch { return false; } }
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DATABASE_NAME, 1);

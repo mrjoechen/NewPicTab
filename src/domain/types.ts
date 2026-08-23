@@ -59,7 +59,7 @@ export interface JsonApiSourceConfig extends SourceBase {
   };
   startingPage: number;
   pageParam?: string;
-  /** Exact HTTPS origins approved after parsing a connection-test response. */
+  /** Exact HTTP or HTTPS origins approved after parsing a connection-test response. */
   authorizedImageOrigins: string[];
 }
 

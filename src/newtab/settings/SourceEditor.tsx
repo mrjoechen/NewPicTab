@@ -7,6 +7,7 @@ import { PROVIDERS } from '../../sources/providers';
 import type { SourceOperations, TmdbMetadataResult } from './SourcesPanel';
 import type { RemoteCacheLease } from '../sourceClient';
 import { Icon } from '../components/Icon';
+import { isPlainHttpUrl } from '../../lib/remoteUrl';
 import { canonicalWebDavChildDirectory, canonicalWebDavDirectory } from '../../sources/webdavUrl';
 import { useInterfaceLanguage } from '../i18n';
 
@@ -182,7 +183,7 @@ export function SourceEditor({ source, type, initialMode = 'edit', operations, o
       if (type === 'webdav') {
         const webDavUrl = url.trim();
         const canonicalRoot = canonicalWebDavDirectory(webDavUrl);
-        if (!canonicalRoot || !buildWebDavDirectoryUrl(canonicalRoot.url.href, webDavPath)) throw new Error('WebDAV 地址必须是 HTTPS 目录地址，且不支持查询参数或片段。');
+        if (!canonicalRoot || !buildWebDavDirectoryUrl(canonicalRoot.url.href, webDavPath)) throw new Error('WebDAV 地址必须是 HTTP 或 HTTPS 目录地址，且不支持查询参数或片段。');
         return { ...base, type, url: canonicalRoot.url.href, folderPath: webDavPath, username: username.trim(), password, includeSubdirectories: recursive } satisfies SourceConfig;
       }
       if (type === 'direct') {
@@ -724,6 +725,7 @@ export function SourceEditor({ source, type, initialMode = 'edit', operations, o
         {type === 'webdav' && <>
           <p className="credential-note">密码会保存在当前浏览器配置中；这不是密码库，任何能解锁此浏览器个人资料的人都可能恢复它。</p>
           <label className="field"><span>WebDAV 地址</span><input type="url" value={url} onChange={(event) => { setUrl(event.target.value); setWebDavPath([]); clearWebDavTest(); }} placeholder="https://dav.example.com/photos/" /></label>
+          {isPlainHttpUrl(url) && <p className="credential-note">HTTP 会明文发送用户名和密码，建议仅用于局域网。</p>}
           <label className="field"><span>用户名</span><input value={username} onChange={(event) => { setUsername(event.target.value); clearWebDavTest(); }} autoComplete="username" /></label>
           <label className="field"><span>密码</span><input type="password" value={password} onChange={(event) => { setPassword(event.target.value); clearWebDavTest(); }} autoComplete="current-password" /></label>
           <label className="check-field"><input type="checkbox" checked={recursive} onChange={(event) => setRecursive(event.target.checked)} /><span>包含子文件夹</span></label>
@@ -741,6 +743,7 @@ export function SourceEditor({ source, type, initialMode = 'edit', operations, o
         {type === 'json-api' && <>
           <p className="credential-note">请求头会保存在当前浏览器配置中；这不是密码库，任何能解锁此浏览器个人资料的人都可能恢复其中的密钥。</p>
           <label className="field"><span>API 地址</span><input type="url" value={endpoint} onChange={(event) => { setEndpoint(event.target.value); setTested(false); }} placeholder="https://api.example.com/images" /></label>
+          {isPlainHttpUrl(endpoint) && <p className="credential-note">HTTP 接口会明文发送请求头，建议仅用于局域网。</p>}
           <fieldset className="header-fields"><legend>请求头</legend>
             {headerRows.map((row) => <div className="header-row" key={row.id}>
               <label className="field"><span>名称</span><input value={row.key} onChange={(event) => { setHeaderRows((rows) => rows.map((item) => item.id === row.id ? { ...item, key: event.target.value, revealed: false } : item)); setTested(false); }} /></label>

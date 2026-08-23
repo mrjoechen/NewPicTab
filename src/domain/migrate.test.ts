@@ -147,7 +147,7 @@ describe('migrateSettings', () => {
           createdAt: 10,
           updatedAt: 11,
           entries: [
-            { id: 'bad', url: 'http://insecure.example/image.jpg' },
+            { id: 'bad', url: 'javascript:alert(1)' },
             { id: 'safe', url: 'https://safe.example/image.jpg', label: 'Safe image' }
           ]
         },
@@ -243,7 +243,7 @@ describe('migrateSettings', () => {
         id: 'api', name: 'Photo API', type: 'json-api', enabled: true, createdAt: 1, updatedAt: 2,
         endpoint: 'https://api.example.test/photos',
         headers: { Accept: 'application/json' },
-        authorizedImageOrigins: ['https://images.example.test/*', 'https://images.example.test/path/*', 'http://unsafe.example/*'],
+        authorizedImageOrigins: ['https://images.example.test/*', 'https://images.example.test/path/*', 'ftp://unsafe.example/*', 'http://nas.local/*'],
         arrayPath: 'data.items',
         startingPage: 3,
         pageParam: 'page',
@@ -258,7 +258,7 @@ describe('migrateSettings', () => {
     expect(migrated.sources).toEqual([expect.objectContaining({
       type: 'json-api',
       startingPage: 3,
-      authorizedImageOrigins: ['https://images.example.test/*'],
+      authorizedImageOrigins: ['https://images.example.test/*', 'http://nas.local/*'],
       fields: {
         imageUrl: 'image.url', stableId: 'id', title: 'caption', author: 'user.name',
         sourcePage: 'page', width: 'width', height: 'height'
@@ -343,6 +343,22 @@ describe('migrateSettings', () => {
   it('falls back search engines that are no longer offered', () => {
     const migrated = migrateSettings({ widgets: { search: { enabled: true, engine: 'brave' } } });
     expect(migrated.widgets.search).toEqual({ ...DEFAULT_SETTINGS.widgets.search, enabled: true });
+  });
+
+  it('keeps HTTP WebDAV, Direct, and JSON API URLs without credentials', () => {
+    const migrated = migrateSettings({
+      sources: [
+        { id: 'dav', name: 'NAS', type: 'webdav', enabled: true, createdAt: 1, updatedAt: 2, url: 'http://192.168.1.8:5005/photos', username: 'ada', password: 'local-only', includeSubdirectories: false },
+        { id: 'direct', name: 'Direct', type: 'direct', enabled: true, createdAt: 1, updatedAt: 2, entries: [{ id: 'lan', url: 'http://192.168.1.8/photo.jpg' }] },
+        { id: 'api', name: 'API', type: 'json-api', enabled: true, createdAt: 1, updatedAt: 2, endpoint: 'http://192.168.1.8:8787/photos', arrayPath: 'items', fields: { imageUrl: 'image' } }
+      ]
+    });
+
+    expect(migrated.sources).toEqual([
+      expect.objectContaining({ type: 'webdav', url: 'http://192.168.1.8:5005/photos' }),
+      expect.objectContaining({ type: 'direct', entries: [{ id: 'lan', url: 'http://192.168.1.8/photo.jpg' }] }),
+      expect.objectContaining({ type: 'json-api', endpoint: 'http://192.168.1.8:8787/photos' })
+    ]);
   });
 
   it('normalizes HTTPS URLs and rejects embedded URL credentials', () => {

@@ -13,7 +13,14 @@ describe('requestOriginPermission', () => {
     expect(request).toHaveBeenCalledWith({ origins: ['https://dav.example.test:8443/*'] }, expect.any(Function));
   });
 
-  it.each(['http://dav.example.test/photos', 'https://ada:secret@dav.example.test/photos', 'not a URL'])('rejects unsafe input without requesting a permission: %s', async (input) => {
+  it('requests exactly the configured HTTP origin, preserving its port', async () => {
+    const request = callbackRequest(true);
+    Object.assign(chrome.permissions, { request });
+    await expect(requestOriginPermission('http://192.168.1.8:5005/photos/a')).resolves.toEqual({ ok: true, origin: 'http://192.168.1.8:5005/*' });
+    expect(request).toHaveBeenCalledWith({ origins: ['http://192.168.1.8:5005/*'] }, expect.any(Function));
+  });
+
+  it.each(['ftp://dav.example.test/photos', 'https://ada:secret@dav.example.test/photos', 'not a URL'])('rejects unsafe input without requesting a permission: %s', async (input) => {
     const request = vi.fn();
     Object.assign(chrome.permissions, { request });
     await expect(requestOriginPermission(input)).resolves.toMatchObject({ ok: false, error: { code: 'validation' } });

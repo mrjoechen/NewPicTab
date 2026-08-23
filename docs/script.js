@@ -8,7 +8,7 @@ const translations = {
   zh: {
     title: "NewPicTab — 你的图片，才是新标签页的主角",
     description:
-      "NewPicTab 是一个以图片为主角的极简 Chrome 新标签页扩展。支持本地图片、WebDAV、HTTPS、JSON API 与 TMDB，无广告、无追踪。",
+      "NewPicTab 是一个以图片为主角的极简 Chrome 新标签页扩展。支持本地图片、WebDAV、HTTP/HTTPS、JSON API 与 TMDB，无广告、无追踪。",
     ogTitle: "NewPicTab — 你的图片，才是新标签页的主角",
     ogDescription: "用自己的图片、私有图床或电影背景，重新设计 Chrome 新标签页。",
     skipLink: "跳到主要内容",
@@ -29,7 +29,7 @@ const translations = {
     featuresTitle: "只留下真正需要的。",
     featuresLead: "NewPicTab 把图片来源、页面组件和隐私控制收进一个安静的新标签页。",
     sourcesTitle: "连接你的图片",
-    sourcesCopy: "支持本地图片、WebDAV、HTTPS、JSON API 与 TMDB。",
+    sourcesCopy: "支持本地图片、WebDAV、HTTP/HTTPS、JSON API 与 TMDB。",
     controlTitle: "只显示你需要的",
     controlCopy: "时间、天气、搜索和快捷网址都可以独立开关。",
     privacyTitle: "默认尊重隐私",
@@ -52,7 +52,7 @@ const translations = {
   en: {
     title: "NewPicTab — Your pictures belong on your new tab",
     description:
-      "NewPicTab is a minimal Chrome new-tab extension for local images, WebDAV, HTTPS, JSON APIs, and TMDB — with no ads or tracking.",
+      "NewPicTab is a minimal Chrome new-tab extension for local images, WebDAV, HTTP/HTTPS, JSON APIs, and TMDB — with no ads or tracking.",
     ogTitle: "NewPicTab — Your pictures belong on your new tab",
     ogDescription: "Redesign Chrome's new tab with your own pictures, private library, or movie backdrops.",
     skipLink: "Skip to main content",
@@ -74,7 +74,7 @@ const translations = {
     featuresTitle: "Only what you need.",
     featuresLead: "NewPicTab brings image sources, page controls, and privacy into one quiet new tab.",
     sourcesTitle: "Connect your pictures",
-    sourcesCopy: "Use local images, WebDAV, HTTPS, JSON APIs, or TMDB.",
+    sourcesCopy: "Use local images, WebDAV, HTTP/HTTPS, JSON APIs, or TMDB.",
     controlTitle: "Keep only what matters",
     controlCopy: "Toggle time, weather, search, and shortcuts independently.",
     privacyTitle: "Private by default",

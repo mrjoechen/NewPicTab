@@ -20,7 +20,7 @@
     "https://geocoding-api.open-meteo.com/*",
     "https://api.bigdatacloud.net/*"
   ],
-  "optional_host_permissions": ["https://*/*"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'; img-src 'self' blob: data:"
   },

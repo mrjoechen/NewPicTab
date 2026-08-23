@@ -62,7 +62,7 @@ function sourceAvailability(source: SourceConfig, state?: SourceLoadState): { la
 const SOURCE_TYPES: { type: SourceType; name: string; detail: string }[] = [
   { type: 'local', name: '本地图片', detail: '从当前设备导入' },
   { type: 'webdav', name: 'WebDAV', detail: '连接你的私有图库' },
-  { type: 'direct', name: '在线图片 URL', detail: '逐行添加 HTTPS 图片' },
+  { type: 'direct', name: '在线图片 URL', detail: '逐行添加图片地址' },
   { type: 'json-api', name: 'JSON API', detail: '映射自定义接口字段' },
   { type: 'tmdb', name: 'TMDB', detail: '电影与电视背景图' }
 ];
