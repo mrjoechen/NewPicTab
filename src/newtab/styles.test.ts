@@ -70,6 +70,8 @@ describe('settings drawer layout guardrails', () => {
   it('keeps the WebDAV folder picker fixed, centered, and visually modal', () => {
     const css = readFileSync('src/newtab/styles.css', 'utf8');
     expect(css).toMatch(/\.webdav-picker-backdrop\s*\{[^}]*position:\s*fixed;[^}]*inset:\s*0;[^}]*place-items:\s*center;[^}]*background:\s*rgb\(3 6 8 \/ 0\.66\);/s);
+    expect(css).toMatch(/\.webdav-picker-dialog\s*\{[^}]*grid-template-rows:\s*auto minmax\(0,\s*1fr\) auto;[^}]*max-height:\s*min\(720px,\s*calc\(100vh - 40px\)\);[^}]*overflow:\s*hidden;/s);
+    expect(css).toMatch(/\.webdav-picker-dialog \.webdav-picker\s*\{[^}]*min-height:\s*0;[^}]*overflow:\s*auto;/s);
   });
 
   it('separates full-editor previews from the test action and spans the load-more control', () => {

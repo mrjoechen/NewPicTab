@@ -289,6 +289,66 @@ describe('background dispatcher', () => {
     expect(new Headers(imageFetcher.mock.calls[0]?.[1]?.headers).get('Authorization')).toMatch(/^Basic /);
   });
 
+  it('does not treat a WebDAV preview cache as the complete catalog when metadata is unknown', async () => {
+    const preview = Array.from({ length: 6 }, (_, index) => ({
+      id: String(index), sourceId: 'dav-preview', url: `https://dav.example/${index}.jpg`, remoteCacheEntryId: String(index)
+    }));
+    const remoteCache = {
+      listSource: vi.fn(async () => preview),
+      get: vi.fn(async () => new Response('cached')),
+      put: vi.fn(), deleteSource: vi.fn(), clear: vi.fn()
+    } as unknown as RemoteCache;
+    const catalogRepository = { get: vi.fn(async () => undefined), put: vi.fn(), delete: vi.fn(), clear: vi.fn() };
+    const item = adapter();
+    item.calls.list.mockResolvedValue({ ok: false, images: [], error: { code: 'network', message: 'timeout', retryable: true } });
+    const config = { id: 'dav-preview', name: 'DAV', type: 'webdav' as const, enabled: true, createdAt: 1, updatedAt: 1, url: 'https://dav.example/', username: 'alice', password: 'secret', includeSubdirectories: true };
+    const dispatch = createDispatcher({ factories: { webdav: () => item }, remoteCache, catalogRepository, senderAllowed: () => true });
+
+    const cachedOnly = await dispatch({ source: 'list', config, cacheOnly: true, offset: 0, limit: 12 });
+    expect(cachedOnly).toMatchObject({ ok: true, consumedCount: 6, nextOffset: 6, hasMore: true });
+    expect(cachedOnly).not.toHaveProperty('totalCount');
+
+    const stale = await dispatch({ source: 'list', config, offset: 0, limit: 12 });
+    expect(stale).toMatchObject({ ok: true, consumedCount: 6, nextOffset: 6, hasMore: true, warnings: [expect.objectContaining({ code: 'network' })] });
+    expect(stale).not.toHaveProperty('totalCount');
+  });
+
+  it('persists a WebDAV catalog so a restarted worker can serve later windows without rescanning', async () => {
+    const images = Array.from({ length: 25 }, (_, index) => ({ id: `dav-${index}`, sourceId: 'dav-persist', url: `https://dav.example/${index}.jpg` })) as [ImageEntry, ...ImageEntry[]];
+    const catalogRepository = new MemoryCatalogRepository();
+    const cacheEntries = images.map((entry) => ({ id: entry.id, sourceId: entry.sourceId, remoteCacheEntryId: entry.id }));
+    const remoteCache = { listSource: vi.fn(async () => cacheEntries), get: vi.fn(async () => new Response('cached')), put: vi.fn(), deleteSource: vi.fn(), clear: vi.fn() } as unknown as RemoteCache;
+    const firstAdapter = adapter(); firstAdapter.calls.list.mockResolvedValueOnce({ ok: true, images });
+    const config = { id: 'dav-persist', name: 'DAV', type: 'webdav' as const, enabled: true, createdAt: 1, updatedAt: 1, url: 'https://dav.example/', username: 'alice', password: 'secret', includeSubdirectories: true };
+    const first = createDispatcher({ factories: { webdav: () => firstAdapter }, remoteCache, catalogRepository, senderAllowed: () => true });
+    await expect(first({ source: 'list', config, offset: 0, limit: 12 })).resolves.toMatchObject({ ok: true, totalCount: 25, nextOffset: 12, hasMore: true });
+
+    const restartedAdapter = adapter();
+    const restarted = createDispatcher({ factories: { webdav: () => restartedAdapter }, remoteCache, catalogRepository, senderAllowed: () => true });
+    await expect(restarted({ source: 'list', config, offset: 12, limit: 12 })).resolves.toMatchObject({
+      ok: true, images: expect.arrayContaining([expect.objectContaining({ id: 'dav-12' })]), nextOffset: 24, hasMore: true
+    });
+    expect(restartedAdapter.calls.list).not.toHaveBeenCalled();
+  });
+
+  it('materializes a WebDAV bitmap served with a generic content type through the real remote cache', async () => {
+    const item = adapter();
+    item.calls.list.mockResolvedValueOnce({ ok: true, images: [{ id: 'bitmap', sourceId: 'dav-bitmap', url: 'https://dav.example/photos/bitmap.bmp' }] });
+    const remoteCache = new RemoteCache({ cache: new IntegrationCache(), meta: new IntegrationMeta() });
+    const config = { id: 'dav-bitmap', name: 'DAV', type: 'webdav' as const, enabled: true, createdAt: 1, updatedAt: 1, url: 'https://dav.example/', username: 'alice', password: 'secret', includeSubdirectories: false };
+    const dispatch = createDispatcher({
+      factories: { webdav: () => item },
+      remoteCache,
+      imageFetcher: vi.fn(async () => new Response(new Uint8Array([0x42, 0x4d]), { headers: { 'Content-Type': 'application/octet-stream' } })),
+      senderAllowed: () => true
+    });
+
+    await expect(dispatch({ source: 'list', config })).resolves.toMatchObject({
+      ok: true,
+      images: [expect.objectContaining({ id: 'bitmap', remoteCacheEntryId: 'bitmap' })]
+    });
+  });
+
   it('uses the real Direct adapter without probing 200 metadata entries before caching the first window', async () => {
     const config: DirectSourceConfig = {
       ...source,

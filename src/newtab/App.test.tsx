@@ -356,6 +356,23 @@ describe('App', () => {
     expect(screen.getByTestId('background-current').style.backgroundImage).not.toContain('missing-cursor.example');
   });
 
+  it('accepts an unknown-total cache cursor without publishing a fabricated source count', async () => {
+    const source = { id: 'unknown-total', name: 'Unknown total', type: 'direct' as const, enabled: true, createdAt: 1, updatedAt: 1, entries: [] };
+    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ newpictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } }));
+    vi.mocked(chrome.runtime.sendMessage).mockImplementation(((message: { cacheOnly?: boolean }, callback: (value: unknown) => void) => {
+      callback(message.cacheOnly
+        ? { ok: true, images: [{ id: 'cached', sourceId: source.id, url: 'https://unknown-total.example/cached.jpg' }], offset: 0, consumedCount: 1, nextOffset: 1, hasMore: true }
+        : { ok: false, images: [], error: { code: 'network', message: 'offline', retryable: true } });
+    }) as typeof chrome.runtime.sendMessage);
+    class DecodedImage { src = ''; decode = vi.fn(async () => undefined); addEventListener = vi.fn(); removeEventListener = vi.fn(); } vi.stubGlobal('Image', DecodedImage);
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByTestId('background-current').style.backgroundImage).toContain('unknown-total.example'));
+    fireEvent.click(screen.getByRole('button', { name: '打开设置' }));
+
+    expect(await screen.findByText(/图片数量待加载/)).toBeInTheDocument();
+  });
+
   it('keeps a cache-only blob alive until current and previous migrate to the network lease', async () => {
     const source = { id: 'blob-source', name: 'Blob', type: 'direct' as const, enabled: true, createdAt: 1, updatedAt: 1, entries: [] };
     vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ newpictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } }));

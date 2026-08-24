@@ -53,9 +53,15 @@ describe('catalog repositories', () => {
     await expect(repository.put(unsafe)).rejects.toThrow('cannot be persisted');
     await expect(repository.get(unsafe.sourceId, unsafe.fingerprint)).resolves.toBeUndefined();
   });
-  it.each(['webdav', 'json-api'] as const)('never persists a %s catalog, even when its URLs look public, and removes legacy records on read', async (sourceType) => {
+  it('persists WebDAV catalogs whose image URLs have no query or fragment', async () => {
     const repository = new MemoryCatalogRepository();
-    const protectedRecord: CatalogRecord = { ...record(`protected-${sourceType}`, 'f'.repeat(64)), sourceType };
+    const stored: CatalogRecord = { ...record('webdav-catalog', 'f'.repeat(64)), sourceType: 'webdav', images: [{ id: 'one', sourceId: 'webdav-catalog', url: 'http://192.168.1.8/photos/one.jpg' }] };
+    await repository.put(stored);
+    await expect(repository.get('webdav-catalog', stored.fingerprint)).resolves.toEqual(stored);
+  });
+  it('never persists a json-api catalog, even when its URLs look public, and removes legacy records on read', async () => {
+    const repository = new MemoryCatalogRepository();
+    const protectedRecord: CatalogRecord = { ...record('protected-json-api', 'f'.repeat(64)), sourceType: 'json-api' };
     await expect(repository.put(protectedRecord)).rejects.toThrow('cannot be persisted');
     const records = (repository as unknown as { records: Map<string, CatalogRecord> }).records;
     records.set(JSON.stringify([protectedRecord.sourceId, protectedRecord.fingerprint]), structuredClone(protectedRecord));

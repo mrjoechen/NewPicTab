@@ -2,7 +2,7 @@ import type { SourceConfig, SourceType } from '../domain/types';
 import type { ImageEntry, SourceAdapter, SourceError } from '../sources/adapter';
 import { DirectSourceAdapter } from '../sources/direct';
 import { JsonApiSourceAdapter } from '../sources/jsonApi';
-import { WebDavSourceAdapter } from '../sources/webdav';
+import { WEBDAV_DIRECTORY_LIMIT, WebDavSourceAdapter } from '../sources/webdav';
 import { TmdbSourceAdapter, type TmdbMetadata } from '../sources/tmdb';
 import { RemoteCache } from '../storage/remoteCache';
 import { isBackgroundRequest, type BackgroundFailure, type BackgroundRequest, type BackgroundResponse } from './messages';
@@ -151,10 +151,9 @@ export function createDispatcher(options: DispatcherOptions = {}): (message: unk
           if (message.cacheOnly) {
             if (!remoteCache) return safeClone({ ok: false, images: [], error: { code: 'unknown', message: 'The local image cache is unavailable.' } });
             const cachedImages = orderedCached(await remoteCache.listSource(config.id, fingerprint), knownMetadata?.images);
-            const window = cachedImages.slice(offset, offset + limit);
-            const totalCount = knownMetadata?.images.length ?? cachedImages.length;
-            return window.length
-              ? safeClone({ ok: true, images: window as [ImageEntry, ...ImageEntry[]], totalCount, offset, consumedCount: window.length, nextOffset: offset + window.length, hasMore: offset + window.length < totalCount })
+            const window = cachedCatalogWindow(cachedImages, offset, limit, knownMetadata?.images.length);
+            return window.images.length
+              ? safeClone({ ok: true, ...window })
               : safeClone({ ok: false, images: [], error: { code: 'empty', message: 'No cached images are available for this source.' } });
           }
           const forceRefresh = message.forceRefresh === true;
@@ -164,8 +163,8 @@ export function createDispatcher(options: DispatcherOptions = {}): (message: unk
           if (!listed.ok) {
             const cachedImages = orderedCached(await remoteCache?.listSource(config.id, fingerprint) ?? [], knownMetadata?.images);
             const staleWarning: SourceError = { code: listed.error.code, message: 'Cached images are being used because the source could not be refreshed.', retryable: listed.error.retryable };
-            const window = cachedImages.slice(offset, offset + limit);
-            return window.length ? safeClone({ ok: true, images: window as [ImageEntry, ...ImageEntry[]], totalCount: cachedImages.length, offset, consumedCount: window.length, nextOffset: offset + window.length, hasMore: offset + window.length < cachedImages.length, warnings: [...(listed.warnings ?? []), staleWarning] }) : safeClone(listed);
+            const window = cachedCatalogWindow(cachedImages, offset, limit, knownMetadata?.images.length);
+            return window.images.length ? safeClone({ ok: true, ...window, warnings: [...(listed.warnings ?? []), staleWarning] }) : safeClone(listed);
           }
           if (knownMetadata?.fingerprint !== fingerprint) {
             const record: CatalogRecord = { sourceId: config.id, sourceType: config.type, fingerprint, images: listed.images, totalCount: listed.images.length, fetchedAt: Date.now(), ...(listed.warnings ? { warnings: listed.warnings } : {}) };
@@ -310,6 +309,16 @@ function orderedCached(cached: readonly ImageEntry[], catalog?: readonly ImageEn
   return [...ordered, ...cached.filter((entry) => byId.has(entry.id))];
 }
 
+function cachedCatalogWindow(cachedImages: readonly ImageEntry[], offset: number, limit: number, catalogCount: number | undefined) {
+  const images = cachedImages.slice(offset, offset + limit);
+  const consumedCount = images.length;
+  const nextOffset = offset + consumedCount;
+  const cursor = { images, offset, consumedCount, nextOffset };
+  return catalogCount === undefined
+    ? { ...cursor, hasMore: true }
+    : { ...cursor, totalCount: catalogCount, hasMore: nextOffset < catalogCount };
+}
+
 async function fetchWithDeadline(fetcher: (url: string, init?: RequestInit) => Promise<Response>, url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -361,7 +370,7 @@ function safeWebDavDirectories(values: unknown[]): import('../sources/adapter').
     const directory = safeWebDavDirectory(value)[0];
     if (directory && !unique.has(directory.name)) unique.set(directory.name, directory);
   }
-  return [...unique.values()].sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0).slice(0, 200);
+  return [...unique.values()].sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0).slice(0, WEBDAV_DIRECTORY_LIMIT);
 }
 
 function safeWebDavDirectory(value: unknown): import('../sources/adapter').SafeWebDavDirectory[] {

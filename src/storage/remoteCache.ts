@@ -3,11 +3,11 @@ export const DEFAULT_REMOTE_CACHE_BYTES = 250 * 1024 * 1024;
 export const DEFAULT_REMOTE_IMAGE_BYTES = 16 * 1024 * 1024;
 const CACHE_NAME = 'newpictab-remote-images-v1';
 export const REMOTE_CACHE_LOCK = 'newpictab-remote-cache-storage';
-const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
 export type CacheableRemoteSourceType = 'direct' | 'json-api' | 'webdav' | 'tmdb';
 /** @deprecated Use CacheableRemoteSourceType. */
 export type CacheableSourceType = CacheableRemoteSourceType;
 import type { ImageEntry, ImageEntryBase } from '../sources/adapter';
+import { cacheableWebDavImageContentType, canonicalRemoteImageContentType } from '../sources/remoteImagePolicy';
 import { boundedRemoteText } from '../sources/text';
 
 export interface RemoteCacheMetadata { sourceId: string; fingerprint: string; entryId: string; size: number; lastAccessed: number; cacheKey: string; descriptor?: CachedRemoteDescriptor; }
@@ -50,7 +50,7 @@ export class RemoteCache {
       catch { return { cached: false, reason: 'storage', fallbackAvailable: false }; }
       const hadPrevious = Boolean(previousRecord && previousResponse);
       let prepared: Awaited<ReturnType<typeof prepare>>;
-      try { prepared = await prepare(response, this.maxEntryBytes); } catch { await cancelPrevious(previousResponse); return { cached: false, reason: 'storage', ...(hadPrevious ? { fallbackAvailable: true } : {}) }; }
+      try { prepared = await prepare(response, this.maxEntryBytes, sourceType, entry); } catch { await cancelPrevious(previousResponse); return { cached: false, reason: 'storage', ...(hadPrevious ? { fallbackAvailable: true } : {}) }; }
       if ('reason' in prepared) { await cancelPrevious(previousResponse); return { cached: false, reason: prepared.reason, ...(hadPrevious ? { fallbackAvailable: true } : {}) }; }
       try {
         await this.cache.put(key, prepared.response.clone());
@@ -184,13 +184,18 @@ function safeDescriptor(entry: ImageEntry, sourceType: CacheableRemoteSourceType
 
 function safeText(value: string | undefined): string | undefined { return value && !/(?:https?:\/\/|\b[a-z][a-z0-9+.-]*:\/\/)/i.test(value) ? boundedRemoteText(value) : undefined; }
 
-async function prepare(response: Response, limit: number): Promise<{ response: Response; size: number } | { reason: PutResult['reason'] }> {
+async function prepare(response: Response, limit: number, sourceType: CacheableRemoteSourceType, entry: ImageEntry | undefined): Promise<{ response: Response; size: number } | { reason: PutResult['reason'] }> {
   if (!response.ok || response.type === 'opaque') { await cancel(response); return { reason: 'response' }; }
-  const contentType = response.headers.get('Content-Type')?.split(';', 1)[0].trim().toLowerCase();
-  if (!contentType || !ALLOWED_TYPES.has(contentType)) { await cancel(response); return { reason: 'content-type' }; }
+  const rawContentType = response.headers.get('Content-Type') ?? undefined;
+  const imageUrl = entry && 'url' in entry && typeof entry.url === 'string' ? entry.url : undefined;
+  const contentType = sourceType === 'webdav'
+    ? cacheableWebDavImageContentType(rawContentType, imageUrl)
+    : canonicalRemoteImageContentType(rawContentType);
+  if (!contentType) { await cancel(response); return { reason: 'content-type' }; }
   const declared = Number(response.headers.get('Content-Length')); if (Number.isFinite(declared) && declared > limit) { await cancel(response); return { reason: 'too-large' }; }
   const body = await readLimited(response, limit); if (!body) return { reason: 'too-large' };
-  return { response: new Response(body.blob, { status: response.status, statusText: response.statusText, headers: response.headers }), size: body.size };
+  const headers = new Headers(response.headers); headers.set('Content-Type', contentType);
+  return { response: new Response(body.blob, { status: response.status, statusText: response.statusText, headers }), size: body.size };
 }
 async function readLimited(response: Response, limit: number): Promise<{ blob: Blob; size: number } | undefined> {
   const body = response.body; if (!body) return { blob: new Blob(), size: 0 }; const reader = body.getReader(); const chunks: BlobPart[] = []; let size = 0;

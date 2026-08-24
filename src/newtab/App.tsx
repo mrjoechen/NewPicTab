@@ -59,7 +59,7 @@ export default function App() {
   const [remoteCacheSession] = useState(() => new RemoteCacheSession());
   const loadGeneration = useRef(0);
   const displayedSourceId = useRef<string | null>(null);
-  const windowState = useRef({ nextOffset: 0, totalCount: 0, hasMore: false });
+  const windowState = useRef<{ nextOffset: number; totalCount?: number; hasMore: boolean }>({ nextOffset: 0, totalCount: 0, hasMore: false });
   const remoteWindows = useRef<RemoteWindow[]>([]);
   const retiredWindows = useRef<RemoteWindow[]>([]);
   const windowLoading = useRef<WindowLoadOwner | null>(null);
@@ -143,8 +143,8 @@ export default function App() {
     const offset = result.offset ?? requestedOffset;
     const consumedCount = source.type === 'local' ? result.images.length : result.consumedCount!;
     const nextOffset = source.type === 'local' ? offset + consumedCount : result.nextOffset!;
-    const totalCount = result.totalCount ?? nextOffset;
-    windowState.current = { nextOffset, totalCount, hasMore: result.hasMore ?? nextOffset < totalCount };
+    const totalCount = result.totalCount ?? (source.type === 'local' ? nextOffset : undefined);
+    windowState.current = { nextOffset, totalCount, hasMore: result.hasMore ?? (totalCount !== undefined && nextOffset < totalCount) };
     if (!displayable.length) { lease.release(); return false; }
     const firstWindowForSource = displayedSourceId.current !== source.id;
     if (!remoteCacheSession.commit(lease)) return false;
@@ -380,7 +380,7 @@ function toBackgroundImage(entry: ImageEntry): BackgroundImage[] {
 }
 
 function hasRemoteWindowCursor(result: Extract<Awaited<ReturnType<typeof listSource>>, { ok: true }>, requestedOffset: number): boolean {
-  return typeof result.offset === 'number'
+  const coherentCursor = typeof result.offset === 'number'
     && Number.isSafeInteger(result.offset)
     && result.offset >= 0
     && result.offset === requestedOffset
@@ -390,11 +390,12 @@ function hasRemoteWindowCursor(result: Extract<Awaited<ReturnType<typeof listSou
     && typeof result.nextOffset === 'number'
     && Number.isSafeInteger(result.nextOffset)
     && result.nextOffset === result.offset + result.consumedCount
-    && typeof result.totalCount === 'number'
-    && Number.isSafeInteger(result.totalCount)
-    && result.totalCount >= result.nextOffset
-    && typeof result.hasMore === 'boolean'
-    && result.hasMore === (result.nextOffset < result.totalCount);
+    && typeof result.hasMore === 'boolean';
+  if (!coherentCursor) return false;
+  if (result.totalCount === undefined) return result.hasMore === true;
+  return Number.isSafeInteger(result.totalCount)
+    && result.totalCount >= result.nextOffset!
+    && result.hasMore === (result.nextOffset! < result.totalCount);
 }
 
 function sourceState(source: NewPicTabSettings['sources'][number], status: 'stale' | 'error', detail: unknown): SourceLoadState {

@@ -25,6 +25,26 @@ describe('RemoteCache', () => {
     await expect(subject.put('remote', 'x', image(4), 'direct')).resolves.toMatchObject({ cached: false });
     await expect(subject.get('remote', 'x')).resolves.toBeUndefined();
   });
+  it.each([
+    ['jpeg alias', 'image/jpg', 'alias.jpg', 'image/jpeg'],
+    ['progressive jpeg alias', 'image/pjpeg', 'progressive.jpg', 'image/jpeg'],
+    ['png alias', 'image/x-png', 'alias.png', 'image/png'],
+    ['bitmap', 'image/bmp', 'bitmap.bmp', 'image/bmp'],
+    ['bitmap alias', 'image/x-ms-bmp', 'alias.bmp', 'image/bmp']
+  ])('normalizes the supported %s response before caching', async (_label, responseType, filename, expectedType) => {
+    const subject = new RemoteCache({ meta: new MemoryMeta(), cache: new MemoryCache() });
+    const entry = { id: filename, sourceId: 'dav', url: `https://dav.example/photos/${filename}` };
+
+    await expect(subject.put('dav', filename, image(1, responseType), 'webdav', entry)).resolves.toMatchObject({ cached: true });
+    await expect(subject.get('dav', filename).then((response) => response?.headers.get('Content-Type'))).resolves.toBe(expectedType);
+  });
+  it('infers a supported WebDAV image type from a generic response without accepting arbitrary binaries', async () => {
+    const subject = new RemoteCache({ meta: new MemoryMeta(), cache: new MemoryCache() });
+
+    await expect(subject.put('dav', 'bitmap', image(1, 'application/octet-stream'), 'webdav', { id: 'bitmap', sourceId: 'dav', url: 'https://dav.example/photos/bitmap.bmp' })).resolves.toMatchObject({ cached: true });
+    await expect(subject.get('dav', 'bitmap').then((response) => response?.headers.get('Content-Type'))).resolves.toBe('image/bmp');
+    await expect(subject.put('dav', 'binary', image(1, 'application/octet-stream'), 'webdav', { id: 'binary', sourceId: 'dav', url: 'https://dav.example/photos/archive.bin' })).resolves.toMatchObject({ cached: false, reason: 'content-type' });
+  });
   it('evicts least-recently-used entries but retains protected current and next entries', async () => {
     const meta = new MemoryMeta(); const cache = new MemoryCache(); const subject = new RemoteCache({ meta, cache, maxBytes: 20 });
     await subject.put('remote', 'old', image(3), 'direct'); await subject.put('remote', 'current', image(3), 'direct'); await subject.put('remote', 'next', image(3), 'direct');

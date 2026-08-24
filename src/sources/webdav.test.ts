@@ -176,31 +176,46 @@ describe('WebDavSourceAdapter', () => {
     await expect(new WebDavSourceAdapter(async () => response('<root/>')).listImages(source)).resolves.toMatchObject({ error: { code: 'parse' } });
   });
 
-  it('returns partial entries with a warning at the hard resource cap', async () => {
-    const many = Array.from({ length: 2002 }, (_, i) => item(`/photos/${i}.jpg`)).join('');
-    const result = await new WebDavSourceAdapter(async () => response(multistatus(many))).listImages(source);
-    expect(result).toMatchObject({ ok: true, warnings: [expect.objectContaining({ code: 'parse' })] });
-    expect(result.images).toHaveLength(2000);
-  }, 15_000);
+  it('accepts JPEG aliases, BMP, and extension-based types when the server sends a generic content type', async () => {
+    const fixture = multistatus([
+      item('/photos/alias.jpg', 'image/jpg'),
+      item('/photos/bitmap.bmp', 'application/octet-stream'),
+      item('/photos/not-an-image.jpg', 'text/plain'),
+      item('/photos/phone.heic', 'image/heic'),
+      item('/photos/raw.cr2', 'image/x-canon-cr2')
+    ].join(''));
+    const result = await new WebDavSourceAdapter(async () => response(fixture)).listImages(source);
+    expect(result.ok && result.images.map((image) => image.url)).toEqual([
+      'https://dav.example.test/photos/alias.jpg',
+      'https://dav.example.test/photos/bitmap.bmp'
+    ]);
+  });
 
-  it('does not report truncation for exactly 2000 non-recursive responses', async () => {
-    const exact = Array.from({ length: 2000 }, (_, i) => item(`/photos/${i}.jpg`)).join('');
-    const result = await new WebDavSourceAdapter(async () => response(multistatus(exact))).listImages(source);
+  it('returns partial entries with a warning at the hard resource cap', async () => {
+    const many = Array.from({ length: 22 }, (_, i) => item(`/photos/${i}.jpg`)).join('');
+    const result = await new WebDavSourceAdapter(async () => response(multistatus(many)), { resourceLimit: 20 }).listImages(source);
+    expect(result).toMatchObject({ ok: true, warnings: [expect.objectContaining({ code: 'parse' })] });
+    expect(result.images).toHaveLength(20);
+  });
+
+  it('does not report truncation for exactly the configured resource cap of non-recursive responses', async () => {
+    const exact = Array.from({ length: 20 }, (_, i) => item(`/photos/${i}.jpg`)).join('');
+    const result = await new WebDavSourceAdapter(async () => response(multistatus(exact)), { resourceLimit: 20 }).listImages(source);
     expect(result).toMatchObject({ ok: true });
     expect(result.warnings).toBeUndefined();
-    expect(result.images).toHaveLength(2000);
-  }, 15_000);
+    expect(result.images).toHaveLength(20);
+  });
 
   it('reports truncation at an exact resource cap when a discovered child directory remains to scan', async () => {
     const root = [
-      ...Array.from({ length: 1999 }, (_, i) => item(`/photos/${i}.txt`, 'text/plain')),
+      ...Array.from({ length: 19 }, (_, i) => item(`/photos/${i}.txt`, 'text/plain')),
       item('/photos/nested/', '', 'HTTP/1.1 200 OK', true)
     ].join('');
     const fetcher = vi.fn(async () => response(multistatus(root)));
-    const result = await new WebDavSourceAdapter(fetcher).listImages({ ...source, includeSubdirectories: true });
-    expect(result).toMatchObject({ ok: false, error: { code: 'empty' }, warnings: [expect.objectContaining({ code: 'parse', message: 'WebDAV scan was truncated after 2,000 resources.' })] });
+    const result = await new WebDavSourceAdapter(fetcher, { resourceLimit: 20 }).listImages({ ...source, includeSubdirectories: true });
+    expect(result).toMatchObject({ ok: false, error: { code: 'empty' }, warnings: [expect.objectContaining({ code: 'parse', message: 'WebDAV scan was truncated after 20 resources.' })] });
     expect(fetcher).toHaveBeenCalledOnce();
-  }, 15_000);
+  });
 
   it('requires a 207 Multi-Status response even when another 2xx response has valid XML', async () => {
     const result = await new WebDavSourceAdapter(async () => response(multistatus(item('/photos/a.jpg')), 200)).listImages(source);
@@ -232,6 +247,63 @@ describe('WebDavSourceAdapter', () => {
       ok: false,
       error: { code: 'network', message: 'The WebDAV server could not be reached.' }
     });
+  });
+
+  it('returns discovered images when the overall scan deadline interrupts a child directory', async () => {
+    vi.useFakeTimers();
+    try {
+      let calls = 0;
+      let markChildStarted!: () => void;
+      const childStarted = new Promise<void>((resolve) => { markChildStarted = resolve; });
+      const fetcher = vi.fn((_url: string, init?: RequestInit): Promise<Response> => {
+        calls += 1;
+        if (calls === 1) return Promise.resolve(response(multistatus([
+          item('/photos/root.jpg'),
+          item('/photos/one/', '', 'HTTP/1.1 200 OK', true),
+          item('/photos/two/', '', 'HTTP/1.1 200 OK', true)
+        ].join(''))));
+        if (calls === 2) {
+          markChildStarted();
+          return new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+          });
+        }
+        return Promise.resolve(response(multistatus('')));
+      });
+      const adapter = new WebDavSourceAdapter(fetcher, { timeoutMs: 20, scanTimeoutMs: 5 });
+      const loading = adapter.listImages({ ...source, includeSubdirectories: true });
+
+      await childStarted;
+      await vi.advanceTimersByTimeAsync(20);
+
+      await expect(loading).resolves.toMatchObject({
+        ok: true,
+        images: [expect.objectContaining({ url: 'https://dav.example.test/photos/root.jpg' })],
+        warnings: [expect.objectContaining({ code: 'network', retryable: true, message: expect.stringContaining('overall time limit') })]
+      });
+      expect(fetcher).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reports the overall scan deadline even when the fetcher resolves after ignoring cancellation', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetcher = vi.fn(() => new Promise<Response>((resolve) => {
+        setTimeout(() => resolve(response(multistatus(item('/photos/late.jpg')))), 10);
+      }));
+      const loading = new WebDavSourceAdapter(fetcher, { timeoutMs: 20, scanTimeoutMs: 5 }).listImages(source);
+
+      await vi.advanceTimersByTimeAsync(10);
+
+      await expect(loading).resolves.toMatchObject({
+        ok: false,
+        error: { code: 'network', retryable: true, message: expect.stringContaining('overall time limit') }
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('caps oversized XML response bodies and cancels late work on dispose', async () => {

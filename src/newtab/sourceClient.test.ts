@@ -48,13 +48,55 @@ describe('new-tab source client', () => {
     try {
       vi.mocked(chrome.runtime.sendMessage).mockImplementation((() => undefined) as unknown as typeof chrome.runtime.sendMessage);
       let result: unknown = 'pending';
-      void sendBackgroundRequest({ source: 'list', config: direct }).then((value) => { result = value; });
+      void sendBackgroundRequest({ source: 'test', config: direct }).then((value) => { result = value; });
 
       await vi.advanceTimersByTimeAsync(5_000);
       expect(result).toBe('pending');
       await vi.advanceTimersByTimeAsync(25_000);
+      expect(result).toBe('pending');
+      await vi.advanceTimersByTimeAsync(5_000);
 
       expect(result).toEqual({ ok: false, code: 'network', message: '图片源后台服务暂不可用。' });
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('allows a slow successful source test to finish after the WebDAV request deadline', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(chrome.runtime.sendMessage).mockImplementation(((_request: unknown, callback: (value: unknown) => void) => {
+        setTimeout(() => callback({ ok: true, message: 'slow success' }), 30_001);
+      }) as typeof chrome.runtime.sendMessage);
+      let result: unknown = 'pending';
+      void sendBackgroundRequest({ source: 'test', config: direct }).then((value) => { result = value; });
+
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(result).toBe('pending');
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(result).toEqual({ ok: true, message: 'slow success' });
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('gives live remote lists a longer deadline than cache-only lookups', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(chrome.runtime.sendMessage).mockImplementation((() => undefined) as unknown as typeof chrome.runtime.sendMessage);
+      let listResult: unknown = 'pending';
+      let cacheResult: unknown = 'pending';
+      void sendBackgroundRequest({ source: 'list', config: direct }).then((value) => { listResult = value; });
+      void sendBackgroundRequest({ source: 'list', config: direct, cacheOnly: true }).then((value) => { cacheResult = value; });
+
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(cacheResult).toEqual({ ok: false, code: 'network', message: '图片源后台服务暂不可用。' });
+      expect(listResult).toBe('pending');
+      await vi.advanceTimersByTimeAsync(90_000);
+      expect(listResult).toEqual({ ok: false, code: 'network', message: '图片源后台服务暂不可用。' });
       expect(vi.getTimerCount()).toBe(0);
     } finally {
       vi.useRealTimers();

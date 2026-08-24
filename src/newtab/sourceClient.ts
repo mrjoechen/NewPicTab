@@ -10,17 +10,29 @@ import { loadInsideDataMaintenance as loadSettings } from '../storage/settingsSt
 import type { SourceOperations, TmdbMetadataResult } from './settings/SourcesPanel';
 import { withNewPicTabDataMutationLock } from '../storage/maintenance';
 import { withChromeCallbackDeadline } from '../lib/chromeCallback';
+import { CACHE_ONLY_CALLBACK_DEADLINE_MS, REMOTE_LIST_CALLBACK_DEADLINE_MS, RUNTIME_MESSAGE_CALLBACK_DEADLINE_MS } from '../sources/webdavPolicy';
 
-export const RUNTIME_MESSAGE_CALLBACK_DEADLINE_MS = 30_000;
+export { CACHE_ONLY_CALLBACK_DEADLINE_MS, REMOTE_LIST_CALLBACK_DEADLINE_MS, RUNTIME_MESSAGE_CALLBACK_DEADLINE_MS } from '../sources/webdavPolicy';
 
 export function sendBackgroundRequest(request: BackgroundRequest): Promise<BackgroundResponse> {
   const unavailable: BackgroundResponse = { ok: false, code: 'network', message: '图片源后台服务暂不可用。' };
+  const timeoutMs = isCacheOnlyList(request)
+    ? CACHE_ONLY_CALLBACK_DEADLINE_MS
+    : isLiveRemoteList(request) ? REMOTE_LIST_CALLBACK_DEADLINE_MS : RUNTIME_MESSAGE_CALLBACK_DEADLINE_MS;
   return withChromeCallbackDeadline<BackgroundResponse>((complete) => {
     chrome.runtime.sendMessage(request, (response: BackgroundResponse | undefined) => {
       const runtimeError = chrome.runtime.lastError;
       complete(runtimeError || !response ? unavailable : response);
     });
-  }, unavailable, RUNTIME_MESSAGE_CALLBACK_DEADLINE_MS);
+  }, unavailable, timeoutMs);
+}
+
+function isLiveRemoteList(request: BackgroundRequest): boolean {
+  return 'source' in request && request.source === 'list' && request.cacheOnly !== true;
+}
+
+function isCacheOnlyList(request: BackgroundRequest): boolean {
+  return 'source' in request && request.source === 'list' && request.cacheOnly === true;
 }
 
 export async function listSource(source: SourceConfig, localAdapter: LocalSourceAdapter, options: { offset?: number; limit?: number; cacheOnly?: boolean; protectedEntryIds?: string[] } = {}): Promise<ListImagesResult> {

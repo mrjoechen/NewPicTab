@@ -56,7 +56,7 @@ export class IndexedDbCatalogRepository implements CatalogRepository {
 
 function key(sourceId: string, fingerprint: string): string { return JSON.stringify([sourceId, fingerprint]); }
 export function isPersistableCatalog(record: CatalogRecord): boolean {
-  if (record.sourceType === 'webdav' || record.sourceType === 'json-api') return false;
+  if (record.sourceType === 'json-api') return false;
   return record.images.every((entry) =>
     hasBoundedRemoteText(entry.description)
     && hasBoundedRemoteText(entry.author)

@@ -5,17 +5,17 @@ import type { ConfigValidationResult, ConnectionTestResult, ImageEntry, ListImag
 import { HttpRequestError, fetchText, type SourceFetch } from './http';
 import { opaqueImageId, sha256Hex } from '../lib/crypto';
 import { isSafeRemoteUrl } from '../lib/remoteUrl';
+import { canonicalRemoteImageContentType, remoteImageContentTypeFromUrl } from './remoteImagePolicy';
+import { WEBDAV_REQUEST_TIMEOUT_MS, WEBDAV_SCAN_TIMEOUT_MS } from './webdavPolicy';
 import { canonicalWebDavChildDirectory, canonicalWebDavDirectory, decodeSafeWebDavPathSegment, isSafeWebDavDirectoryName } from './webdavUrl';
 
 export type WebDavFetch = SourceFetch;
-export interface WebDavAdapterOptions { timeoutMs?: number; maxBytes?: number; }
+export interface WebDavAdapterOptions { timeoutMs?: number; scanTimeoutMs?: number; maxBytes?: number; resourceLimit?: number; }
 
-const RESOURCE_LIMIT = 2000;
-const DIRECTORY_LIMIT = 200;
-const DEFAULT_MAX_BYTES = 5 * 1024 * 1024;
+export const WEBDAV_RESOURCE_LIMIT = 20_000;
+export const WEBDAV_DIRECTORY_LIMIT = 500;
+const DEFAULT_MAX_BYTES = 16 * 1024 * 1024;
 const PROPFIND_BODY = '<?xml version="1.0" encoding="utf-8"?><propfind xmlns="DAV:"><prop><resourcetype/><getcontenttype/><getcontentlength/><getlastmodified/></prop></propfind>';
-const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
-const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif']);
 
 interface CanonicalUrl { url: URL; segments: string[]; }
 interface Resource extends CanonicalUrl { collection: boolean; contentType?: string; }
@@ -24,15 +24,19 @@ interface ListedResponse { resource?: Resource; }
 export class WebDavSourceAdapter implements SourceAdapter<WebDavSourceConfig> {
   private readonly fetcher: WebDavFetch;
   private readonly timeoutMs: number;
+  private readonly scanTimeoutMs: number;
   private readonly maxBytes: number;
+  private readonly resourceLimit: number;
   private readonly controllers = new Map<string, Set<AbortController>>();
   private readonly generations = new Map<string, number>();
   private disposed = false;
 
   constructor(fetcher: WebDavFetch = defaultFetch, options: WebDavAdapterOptions = {}) {
     this.fetcher = fetcher;
-    this.timeoutMs = options.timeoutMs ?? 15_000;
+    this.timeoutMs = options.timeoutMs ?? WEBDAV_REQUEST_TIMEOUT_MS;
+    this.scanTimeoutMs = options.scanTimeoutMs ?? WEBDAV_SCAN_TIMEOUT_MS;
     this.maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
+    this.resourceLimit = options.resourceLimit ?? WEBDAV_RESOURCE_LIMIT;
   }
 
   validateConfig(config: unknown): ConfigValidationResult { return isWebDavConfig(config) ? { ok: true } : { ok: false, error: validationError() }; }
@@ -53,7 +57,7 @@ export class WebDavSourceAdapter implements SourceAdapter<WebDavSourceConfig> {
       return { ok: false, protected: true, error: mapped, ...emptyDiscovery, directories: [] };
     } finally { this.unregister(config.id, controller); }
   }
-  async listImages(config: WebDavSourceConfig): Promise<ListImagesResult> { return this.load(config, RESOURCE_LIMIT); }
+  async listImages(config: WebDavSourceConfig): Promise<ListImagesResult> { return this.load(config, this.resourceLimit); }
   async refreshMetadata(config: WebDavSourceConfig): Promise<void> { this.abortSource(config.id); this.advanceGeneration(config.id); }
   async getAttribution(entry: ImageEntry): Promise<string | undefined> { return entry.attribution; }
   async deleteSource(sourceId: string): Promise<void> { this.abortSource(sourceId); this.advanceGeneration(sourceId); }
@@ -66,6 +70,8 @@ export class WebDavSourceAdapter implements SourceAdapter<WebDavSourceConfig> {
     const root = configuredDirectoryUrl(config)!;
     const generation = this.advanceGeneration(config.id);
     const controller = this.register(config.id);
+    let scanTimedOut = false;
+    const scanTimer = setTimeout(() => { scanTimedOut = true; controller.abort(); }, this.scanTimeoutMs);
     const images: ImageEntry[] = [];
     const warnings: SourceError[] = [];
     const visited = new Set<string>();
@@ -82,12 +88,16 @@ export class WebDavSourceAdapter implements SourceAdapter<WebDavSourceConfig> {
         try { listing = await this.listDirectory(directory.url, config, controller); }
         catch (error) {
           if (!this.isCurrent(config.id, generation)) return failed(cancelledError(), warnings);
+          if (scanTimedOut) return scanDeadlineResult(images, warnings);
           const mapped = requestError(error);
           if (images.length === 0) return failed(mapped, warnings);
           warnings.push(mapped);
+          if (controller.signal.aborted) break;
           continue;
         }
-        if (!this.isCurrent(config.id, generation) || controller.signal.aborted) return failed(cancelledError(), warnings);
+        if (!this.isCurrent(config.id, generation)) return failed(cancelledError(), warnings);
+        if (scanTimedOut) return scanDeadlineResult(images, warnings);
+        if (controller.signal.aborted) return failed(cancelledError(), warnings);
         const remaining = resourceLimit - listedResources;
         const batch = listing.slice(0, Math.max(0, remaining));
         const overflowedBatch = listing.length > batch.length;
@@ -107,13 +117,16 @@ export class WebDavSourceAdapter implements SourceAdapter<WebDavSourceConfig> {
           const url = resource.url.href;
           images.push({ id: await opaqueImageId(config.id, JSON.stringify(['webdav', url])), sourceId: config.id, url, description: filename(resource.url) });
         }
+        if (!this.isCurrent(config.id, generation)) return failed(cancelledError(), warnings);
+        if (scanTimedOut) return scanDeadlineResult(images, warnings);
+        if (controller.signal.aborted) return failed(cancelledError(), warnings);
         // Reaching the limit is only truncation if this batch had more responses or known child work remains.
         if (overflowedBatch || (listedResources === resourceLimit && queued.length > 0)) truncated = true;
         if (imageLimit !== undefined && images.length >= imageLimit) previewComplete = true;
       }
       if (truncated) warnings.push({ code: 'parse', message: `WebDAV scan was truncated after ${resourceLimit.toLocaleString('en-US')} resources.` });
       return images.length ? succeeded(images, warnings) : failed({ code: 'empty', message: 'No supported images were found in the WebDAV directory.' }, warnings);
-    } finally { this.unregister(config.id, controller); }
+    } finally { clearTimeout(scanTimer); this.unregister(config.id, controller); }
   }
 
   private async listDirectory(directory: URL, config: WebDavSourceConfig, controller: AbortController): Promise<ListedResponse[]> {
@@ -208,14 +221,18 @@ async function safeChildDirectories(listing: ListedResponse[], root: CanonicalUr
   }
   const ordered = [...children.values()]
     .sort((left, right) => compareDirectoryNames(left.segments.at(-1)!, right.segments.at(-1)!))
-    .slice(0, DIRECTORY_LIMIT);
+    .slice(0, WEBDAV_DIRECTORY_LIMIT);
   return Promise.all(ordered.map(async (resource) => {
     const name = resource.segments.at(-1)!;
     return { id: `dir_${await sha256Hex(JSON.stringify([sourceId, 'webdav-directory', resource.url.origin, resource.url.pathname]))}`, name, relativeSegments: [name] };
   }));
 }
 function compareDirectoryNames(left: string, right: string): number { return left < right ? -1 : left > right ? 1 : 0; }
-function isImage(resource: Resource): boolean { if (resource.contentType) return IMAGE_TYPES.has(resource.contentType); const ext = resource.url.pathname.split('.').pop()?.toLowerCase(); return Boolean(ext && IMAGE_EXTENSIONS.has(ext)); }
+function isImage(resource: Resource): boolean {
+  if (canonicalRemoteImageContentType(resource.contentType)) return true;
+  return (!resource.contentType || resource.contentType === 'application/octet-stream')
+    && Boolean(remoteImageContentTypeFromUrl(resource.url));
+}
 function filename(url: URL): string { const segment = url.pathname.split('/').filter(Boolean).pop() ?? url.pathname; try { return decodeURIComponent(segment); } catch { return segment; } }
 function basicAuth(username: string, password: string): string { const bytes = new TextEncoder().encode(`${username}:${password}`); let binary = ''; for (const byte of bytes) binary += String.fromCharCode(byte); return `Basic ${btoa(binary)}`; }
 function isWebDavConfig(value: unknown): value is WebDavSourceConfig { if (!value || typeof value !== 'object') return false; const config = value as Partial<WebDavSourceConfig>; return config.type === 'webdav' && validBase(config) && typeof config.url === 'string' && safeConfiguredUrl(config.url, config.folderPath) && typeof config.username === 'string' && config.username.trim().length > 0 && !config.username.includes(':') && typeof config.password === 'string' && config.password.length > 0 && typeof config.includeSubdirectories === 'boolean'; }
@@ -226,6 +243,11 @@ function safeConfiguredUrl(value: string, folderPath: unknown): boolean {
 }
 function validationError(): SourceError { return { code: 'validation', message: 'WebDAV sources require a name, an HTTP or HTTPS directory URL without user information, query, or fragment, username, password, and recursion setting.' }; }
 function cancelledError(): SourceError { return { code: 'network', message: 'The WebDAV request was cancelled.', retryable: true }; }
+function scanTimeoutError(): SourceError { return { code: 'network', message: 'The WebDAV scan stopped before completion because it reached the overall time limit.', retryable: true }; }
+function scanDeadlineResult(images: ImageEntry[], warnings: SourceError[]): ListImagesResult {
+  const timeout = scanTimeoutError();
+  return images.length ? succeeded(images, [...warnings, timeout]) : failed(timeout, warnings);
+}
 function succeeded(images: ImageEntry[], warnings: SourceError[]): ListImagesResult { return { ok: true, images: images as [ImageEntry, ...ImageEntry[]], ...(warnings.length ? { warnings } : {}) }; }
 function failed(error: SourceError, warnings?: SourceError[]): ListImagesResult { return { ok: false, images: [], error, ...(warnings?.length ? { warnings } : {}) }; }
 function requestError(error: unknown): SourceError { if (error instanceof ResponseStatusError) return responseError(error); if (error instanceof SyntaxError || error instanceof HttpRequestError && error.kind === 'too-large') return { code: 'parse', message: 'The WebDAV response could not be parsed safely.' }; return { code: 'network', message: 'The WebDAV server could not be reached.', retryable: true }; }
