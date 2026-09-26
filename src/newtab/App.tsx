@@ -270,6 +270,12 @@ export default function App() {
   const previewWidgets = useMemo(() => clockScalePreview === null
     ? settings.widgets
     : { ...settings.widgets, clock: { ...settings.widgets.clock, scale: clockScalePreview } }, [clockScalePreview, settings.widgets]);
+  const requestMoreRotationEntries = useCallback(async () => {
+    const source = activeSource;
+    const window = windowState.current;
+    if (!source || source.type === 'local' || displayedSourceId.current !== source.id || !window.hasMore) return;
+    await loadRemoteWindow(source, window.nextOffset, loadGeneration.current, false, true);
+  }, [activeSource, loadRemoteWindow]);
   const background = useBackgroundRotation({
     entries: rotationEntries,
     order: settings.appearance.order,
@@ -278,7 +284,8 @@ export default function App() {
     generation,
     cursorStore: chromeRotationCursorStore,
     incrementalEntries: activeSource?.type !== 'local',
-    sourceResetKey: activeSource?.id ?? 'bundled'
+    sourceResetKey: activeSource?.id ?? 'bundled',
+    onEntriesExhausted: requestMoreRotationEntries
   });
   const isSourcePreparing = activeSourceState === 'loading' && background.current?.sourceId !== activeSource?.id;
   const isBackgroundPreparing = background.isDecoding || isSourcePreparing;

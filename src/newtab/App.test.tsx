@@ -373,6 +373,40 @@ describe('App', () => {
     expect(await screen.findByText(/图片数量待加载/)).toBeInTheDocument();
   });
 
+  it('retries an exhausted remote window on the next image change after connectivity recovers', async () => {
+    const source = { id: 'recovering-window', name: 'Recovering window', type: 'direct' as const, enabled: true, createdAt: 1, updatedAt: 1, entries: [] };
+    vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ newpictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } }));
+    let recovered = false;
+    let nextWindowCalls = 0;
+    vi.mocked(chrome.runtime.sendMessage).mockImplementation(((message: { cacheOnly?: boolean; offset?: number }, callback: (value: unknown) => void) => {
+      if (message.cacheOnly) {
+        callback({ ok: true, images: [{ id: 'cached', sourceId: source.id, url: 'https://recovering.example/cached.jpg' }], offset: 0, consumedCount: 1, nextOffset: 1, hasMore: true });
+        return;
+      }
+      if (message.offset === 1) nextWindowCalls += 1;
+      if (recovered && message.offset === 1) {
+        callback({ ok: true, images: [{ id: 'next', sourceId: source.id, url: 'https://recovering.example/next.jpg' }], totalCount: 2, offset: 1, consumedCount: 1, nextOffset: 2, hasMore: false });
+        return;
+      }
+      callback({ ok: false, images: [], error: { code: 'network', message: 'offline', retryable: true } });
+    }) as typeof chrome.runtime.sendMessage);
+    class DecodedImage { src = ''; decode = vi.fn(async () => undefined); addEventListener = vi.fn(); removeEventListener = vi.fn(); } vi.stubGlobal('Image', DecodedImage);
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByTestId('background-current')).toHaveAttribute('data-image-id', 'cached'));
+    await waitFor(() => expect(nextWindowCalls).toBe(1));
+
+    recovered = true;
+    fireEvent.click(screen.getByRole('button', { name: '切换图片' }));
+    await waitFor(() => expect(nextWindowCalls).toBe(2));
+    fireEvent.click(screen.getByRole('button', { name: '打开设置' }));
+    expect(await screen.findByText(/2 张图片/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '关闭设置' }));
+    fireEvent.click(screen.getByRole('button', { name: '切换图片' }));
+
+    await waitFor(() => expect(screen.getByTestId('background-current')).toHaveAttribute('data-image-id', 'next'));
+  });
+
   it('keeps a cache-only blob alive until current and previous migrate to the network lease', async () => {
     const source = { id: 'blob-source', name: 'Blob', type: 'direct' as const, enabled: true, createdAt: 1, updatedAt: 1, entries: [] };
     vi.mocked(chrome.storage.local.get).mockImplementation(async () => ({ newpictab: { ...createDefaultSettings(), activeSourceId: source.id, sources: [source] } }));

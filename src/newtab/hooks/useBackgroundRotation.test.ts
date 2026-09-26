@@ -534,6 +534,31 @@ describe('useBackgroundRotation', () => {
     expect(decodeImage.mock.calls.map(([image]) => image.id)).toEqual(['two', 'three']);
   });
 
+  it('retries quarantined interval candidates on a later tick after a transient outage', async () => {
+    vi.useFakeTimers();
+    let outage = false;
+    const decodeImage = vi.fn(async (image: BackgroundImage) => {
+      if (outage && image.id !== 'one') throw new Error('temporary decoder outage');
+    });
+    const { result } = renderHook(() => useBackgroundRotation({
+      entries: [one, two, three], changeOn: 'interval', intervalMinutes: 1, decodeImage
+    }));
+    await act(async () => Promise.resolve());
+    expect(result.current.current).toEqual(one);
+
+    outage = true;
+    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+    expect(result.current.current).toEqual(one);
+    expect(result.current.failedIds).toEqual(['two', 'three']);
+
+    outage = false;
+    decodeImage.mockClear();
+    await act(async () => vi.advanceTimersByTimeAsync(60_000));
+
+    expect(result.current.current).toEqual(two);
+    expect(decodeImage.mock.calls.map(([image]) => image.id)).toEqual(['two']);
+  });
+
   it('rebases the interval after successful manual navigation', async () => {
     vi.useFakeTimers();
     const decodeImage = vi.fn().mockResolvedValue(undefined);
@@ -659,6 +684,32 @@ describe('useBackgroundRotation', () => {
     await act(async () => vi.advanceTimersByTimeAsync(60_000));
 
     expect(result.current.current?.id).toBe('10');
+  });
+
+  it('does not let a pending exhausted callback monopolize later navigation attempts', async () => {
+    const pendingLoad = deferred();
+    const onEntriesExhausted = vi.fn(() => pendingLoad.promise);
+    const { result } = renderHook(() => useBackgroundRotation({
+      entries: [one], decodeImage: vi.fn().mockResolvedValue(undefined), onEntriesExhausted
+    }));
+    await waitFor(() => expect(result.current.current).toEqual(one));
+
+    await act(async () => {
+      void result.current.goNext();
+      await Promise.resolve();
+    });
+    expect(onEntriesExhausted).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      void result.current.goNext();
+      await Promise.resolve();
+    });
+    try {
+      expect(onEntriesExhausted).toHaveBeenCalledTimes(2);
+    } finally {
+      pendingLoad.resolve();
+      await act(async () => Promise.resolve());
+    }
   });
 
   it('does not transfer a delayed old-URL failure to an incremental replacement', async () => {

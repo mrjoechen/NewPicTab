@@ -39,6 +39,8 @@ export interface UseBackgroundRotationOptions {
   incrementalEntries?: boolean;
   /** Synchronously clears display state before a newly selected source can paint. */
   sourceResetKey?: string | number;
+  /** Requests more source entries when the current window has no navigable alternative. */
+  onEntriesExhausted?: () => void | Promise<void>;
 }
 
 interface DisplayState {
@@ -300,7 +302,8 @@ export function useBackgroundRotation({
   rng,
   cursorStore,
   incrementalEntries = false,
-  sourceResetKey
+  sourceResetKey,
+  onEntriesExhausted
 }: UseBackgroundRotationOptions): BackgroundRotationState {
   const entrySignature = useMemo(
     () => JSON.stringify(entries.map(({ id, sourceId, url }) => [sourceId, id, url])),
@@ -341,6 +344,14 @@ export function useBackgroundRotation({
   ): Promise<void> => {
     if (!mountedRef.current || signal.aborted || request !== requestRef.current) return;
     const sourceEntries = uniqueSourceEntries(entriesRef.current);
+    const current = stateRef.current.current;
+    const alternatives = sourceEntries.filter((entry) =>
+      current === null || entry.id !== current.id || entry.sourceId !== current.sourceId
+    );
+    if (alternatives.length > 0 && alternatives.every((entry) => isFailedImage(failedRef.current, entry))) {
+      failedRef.current = new Map();
+      shuffleQueueRef.current = [];
+    }
     let candidates: OperationCandidate[];
     if (order === 'shuffle') {
       const validIds = new Set(sourceEntries.map((entry) => entry.id));
@@ -389,6 +400,14 @@ export function useBackgroundRotation({
     }
     let remaining = [...candidates];
     const deadline = Date.now() + finiteDuration(operationBudgetMs, DEFAULT_OPERATION_BUDGET_MS);
+    if (remaining.length === 0 && sourceEntries.length > 0 && current !== null && onEntriesExhausted) {
+      try {
+        const pendingRequest = onEntriesExhausted();
+        if (pendingRequest) void pendingRequest.catch(() => undefined);
+      } catch {
+        // Keep the current image; a later navigation can retry the source window.
+      }
+    }
     publish({ ...stateRef.current, isDecoding: remaining.length > 0 });
     let claimedInitialId: string | null = null;
 
@@ -504,7 +523,7 @@ export function useBackgroundRotation({
     if (mountedRef.current && request === requestRef.current) {
       publish({ ...stateRef.current, isDecoding: false });
     }
-  }, [cursorScope, cursorStore, decodeTimeoutMs, operationBudgetMs, order, publish]);
+  }, [cursorScope, cursorStore, decodeTimeoutMs, onEntriesExhausted, operationBudgetMs, order, publish]);
 
   const startFlight = useCallback((
     direction: BackgroundDirection,
@@ -550,6 +569,14 @@ export function useBackgroundRotation({
     const currentEntry = (image: BackgroundImage | null): BackgroundImage | null =>
       image ? entryById.get(`${image.sourceId}\u0000${image.id}`) ?? null : null;
     shuffleQueueRef.current = shuffleQueueRef.current.flatMap((image) => currentEntry(image) ?? []);
+    const displayed = stateRef.current.current;
+    const queueHasAlternative = shuffleQueueRef.current.some((entry) =>
+      displayed === null || entry.id !== displayed.id || entry.sourceId !== displayed.sourceId
+    );
+    const entriesHaveAlternative = entries.some((entry) =>
+      displayed === null || entry.id !== displayed.id || entry.sourceId !== displayed.sourceId
+    );
+    if (!queueHasAlternative && entriesHaveAlternative) shuffleQueueRef.current = [];
     const currentNode = shuffleHistoryRef.current[shuffleHistoryIndexRef.current];
     shuffleHistoryRef.current = shuffleHistoryRef.current.flatMap((node) => {
       const image = currentEntry(node.image);
